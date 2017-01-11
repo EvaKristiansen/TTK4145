@@ -1,2 +1,2 @@
 # TTK4145
-Real time programming course
+Project and exercises in a real time programming course
