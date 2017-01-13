@@ -1,0 +1,10 @@
+
+    -Atomic operation:
+        An atomic operation, is guaranteed to work on variables without interference from other operations. 
+    -Semaphore:
+       A variable or abstract data type that controls access to a common resource. A "busy" sign
+    -Mutex:
+       Mutex is short for mutual exclusion, it is a way to avoid race conditions. To do this, the critical section of a thread, can not
+       operate at the same time as the critical section of a concurent thread.
+    -Critical section:
+      Part of a thread that is dependant on no iterference from concurrent threads.
