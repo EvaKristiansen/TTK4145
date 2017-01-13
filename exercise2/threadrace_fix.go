@@ -8,34 +8,42 @@ import(
 )
 
 var counterbuff = make(chan int, 1);
-var busybuff = make(chan bool, 1);
+var busybuff = make(chan bool, 2);
 
 func thread_1(){
 	for j := 0; j < 1000000; j++{
-		check := false
-		while (check == false){
+		check := true
+		for (check == true){
 			check = <- busybuff
+			busybuff <- true
 		}
-		
-		busybuff <- true
+		Println("plusser")
+
 		i := <- counterbuff
 		
 		i++;
 		counterbuff <- i
+
+		<- busybuff
 		busybuff <- false
+		
 	}
 }
 func thread_2(){
 	for j := 0; j < 1000000; j++{
-		check := false
-		while (check == false){
+		check := true
+		for (check == true){
 			check = <- busybuff
+			busybuff <- true
 		}
 
-		busybuff <- true
 		i := <- counterbuff
+		Println("hei")
+
 		i--;
 		counterbuff <- i
+
+		<- busybuff
 		busybuff <- false
 	}
 }
