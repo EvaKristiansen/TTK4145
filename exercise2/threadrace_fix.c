@@ -4,24 +4,26 @@
 int i = 0;
 pthread_mutex_t lock;
 
-void thread1(){
+void* thread1(){
 	for (int x = 0; x < 1000000; x++){
 	pthread_mutex_lock(&lock);
 	i++;
 	pthread_mutex_unlock(&lock);
 	}
+return NULL;
 }
 
-void thread2(){
-	for (int x = 0; x < 1000000; x++){
+void* thread2(){
+	for (int x = 0; x < 1000001; x++){
 	pthread_mutex_lock(&lock);
 	i--;
 	pthread_mutex_unlock(&lock);
 	}
+return NULL;
 }
 
 int main(){
-	phtread_mutex_init(&lock,NULL);
+	pthread_mutex_init(&lock,NULL);
 	
 	pthread_t t1;
 	pthread_create(&t1, NULL,thread1,NULL);
@@ -33,6 +35,6 @@ int main(){
 
 	pthread_mutex_destroy(&lock);
 
-	printf("%d",i);
+	printf("%d\n",i);
 	return 0;
 }
