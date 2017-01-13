@@ -1,23 +1,25 @@
-from threading import Thread
+import threading
+
 i = 0
+lock = threading.Lock()
 
 def thread_1():
 	global i
 	for x in range (0,1000000):
-		Lock.aquire()
+		lock.acquire()
 		i+=1
-		Lock.release()
+		lock.release()
 def thread_2():
 	global i
-	for x in range (0,1000000):
-		Lock.aquire
+	for x in range (0,1000001):
+		lock.acquire()
 		i-=1
-		Lock.release()
+		lock.release()
 
 def main():
-	Thread1 = Thread(target=thread_1,args=(),)
+	Thread1 = threading.Thread(target=thread_1,args=(),)
 	Thread1.start()
-	Thread2 = Thread(target=thread_2,args=(),)
+	Thread2 = threading.Thread(target=thread_2,args=(),)
 	Thread2.start()
 	
 	Thread1.join()
