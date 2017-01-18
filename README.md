@@ -1,2 +1,2 @@
-# TTK4145
-Project and exercises in a real time programming course
+# Oppslagstavle
+Desginpresentasjon mandag 30.01.17.
