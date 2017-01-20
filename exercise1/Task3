@@ -1,24 +1,42 @@
 • What is concurrency? What is parallelism? What's the difference?
-		○ Concurrency kunseptuelt at flere enheter, som hver skal utføre oppgaver, deler informasjon på en slik måte at selv om ikke alle delproblemene løses linneært for å løse det store problemet, så blir sluttresultatet det samme. Man har altså en slags prioriteringrekkefølge på oppgaver som skal løses Parallelism  er det å gjøre flere uavhengige oppgaver samtidig. 
-		○ "Concurrency is about dealing with a lot of things at once, parallellism is about doing a lot of things at once."
+		○ Concurrency kunseptuelt at flere enheter, som hver skal utføre oppgaver, deler informasjon på en slik måte 
+		at selv om ikke alle delproblemene løses linneært for å løse det store problemet, så blir sluttresultatet det 
+		samme. Man har altså en slags prioriteringrekkefølge på oppgaver som skal løses Parallelism  er det å gjøre 
+		flere uavhengige oppgaver samtidig. 
+		○ "Concurrency is about dealing with a lot of things at once, parallellism is about doing a lot of things 
+		at once."
 • Why have machines become increasingly multicore in the past decade?
-		○ Tidligere var det enkelt å øke hastigheten på hardware ved å øke klokkefrekvens, det går ikke lenger. Ved å ha flere kjerner i en maskin, kan den løse flere uavhengige problem samtidig. Om man kan utnytte denne egenskapen, kan man få noen oppgaver til å løses veldig raskt på lav klokkefrekvens. Dette kan enkelt gjøres fordi operativsystemet styrer mange uavhengige prosesser.
-• What kinds of problems motivates the need for concurrent execution? (Or phrased differently: What problems do concurrency help in solving?)
-		○ Concurrency gjør det lettere å løse problemer som har concurrency-egenskapen: Flere aktører og delte ressurser. For eksempel så må datamaskinen min kontinuerlig både sjekke om jeg skriver, og kjøre alle bakgrunnsprogrammene mine. Dette kan løses med concurrency, for å få best mulig flyt. Dessuten kan det gi mindre dødtid på prosessoren, og utnytte flere kjerner.
-• Does creating concurrent programs make the programmer's life easier? Harder? Maybe both? (Come back to this after you have worked on part 4 of this exercise)
+		○ Tidligere var det enkelt å øke hastigheten på hardware ved å øke klokkefrekvens, det går ikke lenger. 
+		Ved å ha flere kjerner i en maskin, kan den løse flere uavhengige problem samtidig. 
+		Om man kan utnytte denne egenskapen, kan man få noen oppgaver til å løses veldig raskt på lav klokkefrekvens. 
+		Dette kan enkelt gjøres fordi operativsystemet styrer mange uavhengige prosesser.
+• What kinds of problems motivates the need for concurrent execution? (Or phrased differently: 
+What problems do concurrency help in solving?)
+		○ Concurrency gjør det lettere å løse problemer som har concurrency-egenskapen: 
+		Flere aktører og delte ressurser. For eksempel så må datamaskinen min kontinuerlig både sjekke om jeg skriver, 
+		og kjøre alle bakgrunnsprogrammene mine. Dette kan løses med concurrency, for å få best mulig flyt. 
+		Dessuten kan det gi mindre dødtid på prosessoren, og utnytte flere kjerner.
+• Does creating concurrent programs make the programmer's life easier? Harder? Maybe both? 
+(Come back to this after you have worked on part 4 of this exercise)
 		○ Concurrency gjør det vanskeligere for programmereren, fordi 
 • What are the differences between processes, threads, green threads, and coroutines?
 		○ Når man har en algoritme som kjører, er det en prosess. Ulike prosesser har separat minne
 		○ En thread, er en del av en prosess. Ulike threads i den samme prosessen deler minne. Styres av operativsystemet. 
-		○ Green threads er tråder som ikke styres av operativsystemet, men som styres av en virituell maskin, eller en klokke. Dette gjør at man kan bruke disse i multithread, selv på maskiner som ikke har innebygget thread support. 
-		○ En coroutine er som en tråd, men kun en coroutine kan kjøre om gangen. Den har sitt eget minne, og deler globalt minne med andre coroutines. Selv på en flerkjernes maskin, kjører kun én coroutine om gangen. "Check buttons" fra heislab 1 er et eksempel på coroutine. 
+		○ Green threads er tråder som ikke styres av operativsystemet, men som styres av en virituell maskin, 
+		eller en klokke. Dette gjør at man kan bruke disse i multithread, selv på maskiner som ikke har 
+		innebygget thread support. 
+		○ En coroutine er som en tråd, men kun en coroutine kan kjøre om gangen. Den har sitt eget minne, 
+		og deler globalt minne med andre coroutines. Selv på en flerkjernes maskin, kjører kun én coroutine om gangen. 
+		"Check buttons" fra heislab 1 er et eksempel på coroutine. 
 • Which one of these do pthread_create() (C/POSIX), threading.Thread() (Python), go (Go) create?
 		○ Pthread_create() i C, lager en tråd, som styres av OSet.
 		○ Threading.thread() i Python lager en tråd som styres av OSet.
 		○ go, i GO, lager en gønn tråd, som styres av en virituell maskin.
 • How does pythons Global Interpreter Lock (GIL) influence the way a python Thread behaves?
-		○ GIL  gjør det umulig å gjøre flere trådet på en gang, den hindrer altså muligheten til å kjøre koden på flere prosessorkjerner samtidig.  
+		○ GIL  gjør det umulig å gjøre flere trådet på en gang, den hindrer altså muligheten 
+		til å kjøre koden på flere prosessorkjerner samtidig.  
 • With this in mind: What is the workaround for the GIL (Hint: it's another module)?
-		○  Bruk pakken multiprocessing. Denne starter en ny prosess, i stedet for en ny tråd, og lar OSet utnytte flere kjerner. 
+		○  Bruk pakken multiprocessing. Denne starter en ny prosess, i stedet for en ny tråd, 
+		og lar OSet utnytte flere kjerner. 
 • What does func GOMAXPROCS(n int) int change? 
 Denne funksjonen  setter maksimum prosessorkjerner som kan kjøre samtidig til å være n. Den returnerer den tidligere grensen. 
