@@ -8,7 +8,7 @@ init()->
 	net_kernel:start([NodeName, longnames, 500]),
 	{ok, ListenSocket} = gen_udp:open(?RECEIVE_PORT,[binary,{active,false}]),
 	{ok, SendSocket} = gen_udp:open(?SEND_PORT, [binary, {active,true}, {broadcast, true}]),
-    spawn(fun() -> broadcast_loop(SendSocket) end),
+    	spawn(fun() -> broadcast_loop(SendSocket) end),
 	spawn(fun() -> listen_for_connections(ListenSocket) end).
 	
 listen_for_connections(ListenSocket) ->
