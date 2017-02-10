@@ -1,7 +1,13 @@
 %Heftig påvirka av Kjetil og Sivert sine koder
 
+
+
 -module(connection)
 -compile()
+
+-define (SEND_PORT, 20013).
+-define(RECEIVE_PORT, 20014).
+
 
 init()->
 	NodeName = list_to_atom("heis@" ++ get_my_list_ip()),
