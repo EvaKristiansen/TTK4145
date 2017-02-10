@@ -27,7 +27,8 @@ broadcast_loop(SendSocket) ->
 	gen_udp:send(SendSocket,{255,255,255,255},?RECEIVE_PORT,atom_to_list(node())),
 	timer:sleep(5000),
 	broadcast_loop(SendSocket).
-	
+
+%Gets the IP of this node.
 get_my_list_ip() ->
 	{ok, [IpTuple | _IpTail]} = inet:getif(),
 	inet_parse:ntoa(element(1,IpTuple)).
