@@ -13,6 +13,8 @@ init()->
 	NodeName = list_to_atom("heis@" ++ get_my_list_ip()),
 	net_kernel:start([NodeName, longnames, 500]),
 	
+	%erlang:set_cookie(node(), 'monster'), Do we have to set this?
+	
 	{ok, ListenSocket} = gen_udp:open(?RECEIVE_PORT,[list,{active,false}]),
 	{ok, SendSocket} = gen_udp:open(?SEND_PORT, [list, {active,true}, {broadcast, true}]),
 	
@@ -22,8 +24,10 @@ init()->
 	
 listen_for_connections(ListenSocket) ->
 	{ok,{_,Sender,NodeName}} = gen_udp:recv(ListenSocket,0),
+	%Making sure we got a message from the correct place
 	case Sender of
 		?SEND_PORT ->
+			%Debug
 			io:fwrite("Got message from correct port! ~n", []),
 			Node = list_to_atom(NodeName),
 			net_adm:ping(Node),
