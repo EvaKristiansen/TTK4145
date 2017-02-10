@@ -2,30 +2,29 @@
 
 
 
--module(connection)
--compile()
+-module(connection).
+-export([init/0]).
 
--define (SEND_PORT, 20013).
+-define(SEND_PORT, 20013).
 -define(RECEIVE_PORT, 20014).
 
 
 init()->
 	NodeName = list_to_atom("heis@" ++ get_my_list_ip()),
 	net_kernel:start([NodeName, longnames, 500]),
-	{ok, ListenSocket} = gen_udp:open(?RECEIVE_PORT,[binary,{active,false}]),
-	{ok, SendSocket} = gen_udp:open(?SEND_PORT, [binary, {active,true}, {broadcast, true}]),
-    	spawn(fun() -> broadcast_loop(SendSocket) end),
-	spawn(fun() -> listen_for_connections(ListenSocket) end).
+	{ok, ListenSocket} = gen_udp:open(?RECEIVE_PORT,[list,{active,false}]),
+	{ok, SendSocket} = gen_udp:open(?SEND_PORT, [list, {active,true}, {broadcast, true}]),
+	spawn(fun() -> listen_for_connections(ListenSocket) end),
+	spawn(fun() -> broadcast_loop(SendSocket) end).
 	
 listen_for_connections(ListenSocket) ->
-	{ok,{_Adress,?SEND_PORT,NodeName}}gen_udp:recv(ListenSocket,0),
-	Node = node_to_atom(NodeName),
+	{ok,{_Adress,?SEND_PORT,NodeName}} = gen_udp:recv(ListenSocket,0),
+	Node = list_to_atom(NodeName),
 	net_adm:ping(Node),
-	listen_for_connections(ListenSocket)
+	listen_for_connections(ListenSocket).
 
-		
 broadcast_loop(SendSocket) ->
-	gen_udp:send(SendSocket,{255,255,255,255},?RECEIVE_PORT,atom_to_binary(node())),
+	gen_udp:send(SendSocket,{255,255,255,255},?RECEIVE_PORT,atom_to_list(node())),
 	timer:sleep(5000),
 	broadcast_loop(SendSocket).
 	
