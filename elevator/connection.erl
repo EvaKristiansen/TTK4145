@@ -25,24 +25,39 @@ listen_for_connections(ListenSocket) ->
 	{ok,{_,Sender,NodeName}} = gen_udp:recv(ListenSocket,0),
 
 	%Making sure we got a message from the correct place
-	case Sender of
+	case Sender  of
 		?SEND_PORT ->
 			%Debug
-			io:fwrite("Got message from correct port! ~n", []),
 			Node = list_to_atom(NodeName),
-			net_adm:ping(Node),
+			establishconnection(Node),
 			listen_for_connections(ListenSocket);
-		(_) ->
+
+
+		_ ->
 			listen_for_connections(ListenSocket)
 	end.
+	
 
+get_my_list_ip() ->
+	{ok, [IpTuple | _IpTail]} = inet:getif(),
+	inet_parse:ntoa(element(1,IpTuple)).
 
 broadcast_loop(SendSocket) ->
 	gen_udp:send(SendSocket,{255,255,255,255},?RECEIVE_PORT,atom_to_list(node())),
 	timer:sleep(5000),
 	broadcast_loop(SendSocket).
 
-get_my_list_ip() ->
-	{ok, [IpTuple | _IpTail]} = inet:getif(),
-	inet_parse:ntoa(element(1,IpTuple)).
+establishconnection(Node) ->
+	case newnode(Node) of
+		true ->
+			net_adm:ping(Node);
+		false ->
+			noop
+	end.
+
+	
+newnode(Node) ->
+	Nodelist = [node()|nodes()],
+	(not lists:member(Node,Nodelist)).
+
 
