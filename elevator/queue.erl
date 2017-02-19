@@ -12,7 +12,7 @@
 - define(OUTER = 1).
 
 
-% makes a file type to bag, witch corresponds to map.
+% makes a file type to bag, witch corresponds to map. Må vel være dynamisk og tilpasse til antall noder?
 
 init() ->
 	MyQueue_inner = ordsets:new(),
@@ -34,7 +34,7 @@ init() ->
 	DictID2 = dict:append(OUT_KEY, QueueID2_outer, QueueID2_ini),
 	
 
-	register(?QUEUE_PID, spawn(?MODULE, queue_storage, [MyDict, DictID1, DictID2]).
+	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [MyDict, DictID1, DictID2]).
 
 
 init_from_stop ->
@@ -42,13 +42,16 @@ init_from_stop ->
 	% Bruker "insert" egenskapen i queue_storage som skal overskrive eventuelle data som er på "dict -> key"
 	
 
-queue_storage(MyQueue, Queue1, Queue2) ->
+queue_storage_loop(MyQueue, Queue1, Queue2) ->
 	receive
 		{get_set, {Pid, {Id, Key, _Floor, _Direction}}} ->
 			Pid ! dict:find(Key, Id),
 			queue_storage(MyQueue, Queue1, Queue2);
 
-		{insert, }
+		{insert, {Pid, {Id, Key, _Floor, _Direction}}}
+			%Add to dictionary? How?
+			Pid ! dict:find(Key,Id) %Hvordan fungerer denne?
+			queue_storage(MyQueue, Queue1, Queue2);
 
 		{add, }
 
@@ -58,29 +61,33 @@ queue_storage(MyQueue, Queue1, Queue2) ->
 			New_dict = dict:append(dict:erase(Key, Id)
 			queue_storage(MyQueue, ,
 
+	end 
 
 
 
+add_to_queue(ElevatorID, Key,OrderFloor,OrderDir) -> % Er en dum funksjon, som bare setter inn basert på input, order_distributer bestemmer hvor
+	?QUEUE_PID ! {insert,{self(),ElevatorID,Key,OrderFloor,OrderDir}}
+	receive
+		{ok,Queue} ->
+			ok;
+		{_,_} ->
+			io:fwrite("Order was not added ~n ", []),
+			error;
+	end
 
-
-	
-	queue_storage(MyQueue, Queue1, Queue2).
-
-
-
-add_to_queue(OrderDir, OrderFloor, Allstates) -> % Er en smart funksjon
-	
-
-addToInnerQueue(OrderFloor, ElevatorID) ->
-	
-
-mergeFromQueue(ElevatorID, AllStates) -> % er en smart funksjon
+mergeFromQueue(ElevatorID) -> % er dum, merger fra elevatorID inn i andre køer, sletter køen til elevatorID?
 
 getInnerQueue(ElevatorID) ->
-	?QUEUE_PID ! {get_set, {MY_PID, {ElevatorID, IN_KEY, 0, 0}}} % MY_PID er tenkt å brukes så queue_storage kan sende et svar
+	?QUEUE_PID ! {get_set, {self(), {ElevatorID, IN_KEY, 0, 0}}} % MY_PID er tenkt å brukes så queue_storage kan sende et svar
+	receive
+		{ok,Queue} ->
+			Queue;
+		{_,_} ->
+			io:fwrite("No queue for ~w ~n ", [ElevatorID]),
+			error;
+	end
 
-
-getNextOrder(ElevatorID) -> 
+getNextOrder(ElevatorID) -> %Må denne være glup? I så fall, flytt til order_distributer
 
 deleteFromQueue(ElevatorID, CurrentFloor) ->
 	% Kjør en loop som itererer over retningene (-1, 0, 1)
