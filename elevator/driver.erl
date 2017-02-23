@@ -27,7 +27,7 @@ get_new_order() ->
 
 
 
-% C communication, må skrive C-kode som denne kommuniserer med!
+% C communication, kommuniserer med elev_port!
 init_port(ExtPrg) ->
     register(driver, self()),
     process_flag(trap_exit, true),
@@ -68,10 +68,21 @@ encode({elev_set_motor_direction, up}) -> [2,1];
 encode({elev_set_motor_direction, stop}) -> [2,0];
 encode({elev_set_motor_direction, down) -> [2,-1];
 
+%ORDNE SAMMENHENG HER:
 encode({elev_set_button_lamp,Order,on) -> [3,Order#order.direction,Order#order.floor,1];
-encode({elev_set_button_lamp,Order,off) -> 3,Order#order.direction,Order#order.floor,0];
+encode({elev_set_button_lamp,Order,off) -> [3,Order#order.direction,Order#order.floor,0];
 
-encode({elev_set_floor_indicator, Floor}) -> [8, Floor];
+encode({elev_set_floor_indicator, Floor}) -> [4, Floor];
+
+encode({elev_set_door_open_lamp, on}) -> [5, 1];
+encode({elev_set_door_open_lamp, off}) -> [5, 0];
+
+encode({elev_get_button_signal,Order}) -> [6,Order#order.direction,Order#order.floor];
+
+encode({elev_get_floor_sensor_signal}) -> [7];
+
+
+
 
 
 
