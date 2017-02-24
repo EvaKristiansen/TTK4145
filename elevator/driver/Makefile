@@ -8,10 +8,10 @@ CFLAGS = -std=gnu11 -g -Wall -Wextra
 LDFLAGS = -lcomedi -lm
 
 # list of sources
-ELEVSRC = elev.c io.c main.c
+ELEVSRC = elev_port.c erl_comm.c elev.c io.c main.c
 
 # program executable file name.
-TARGET = elevator
+TARGET = elev_port
 
 # top-level rule, to compile everything.
 all: $(TARGET)
