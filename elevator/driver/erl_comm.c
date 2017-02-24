@@ -1,6 +1,8 @@
 /* erl_comm.c, from http://erlang.org/doc/tutorial/c_port.html */
-
-typedef unsigned char byte;
+#include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "erl_comm.h"
 
 read_cmd(byte *buf)
 {
