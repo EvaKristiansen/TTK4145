@@ -54,6 +54,14 @@ queue_storage_loop(Queues) ->
 			New_set = ordsets:subtract(SubjectSet, Order#order.floor, Order#order.direction),
 			Updated_queues = dict:append(New_set, dict:erase(Key, Queues)),
 			queue_storage_loop(Updated_queues)
+_
+		{is_in_queue, {Pid, Key, Order}} ->
+			SubjectSet = dict:find(Key, Queues),
+			Pid ! ordsets:is_element(SubjectSet, Order#order.floor, Order#order.direction);
+			queue_storage_loop(Queues);
+
+					       
+					       
 	end.
 
 
@@ -74,6 +82,26 @@ add_to_queue(ElevatorID, Order) -> % Er en dum funksjon, som bare setter inn bas
 		{_,_} ->
 			io:fwrite("Order was not added ~n ", []),
 			error
+	end.
+
+
+isOrder(Order, MemberList) ->
+	case MemberList of
+		[Member | Rest] ->
+			case Order#order.direction == 0 of 
+				true ->
+					Key = atom_to_list(Member) + ",
+				false ->
+					Key = atom_to_list(Member) + OUTER,
+			end.
+			?QUEUE_PID ! {is_in_queue, {self(), Key, Order}};
+			receive 
+				{ok, false} ->
+					isOrder(Order, Rest),
+				{ok, true} ->
+					true;
+		[] ->
+			false
 	end.
 
 
