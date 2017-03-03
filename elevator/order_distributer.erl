@@ -11,12 +11,12 @@ choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
 			[Penalty | Penalties_rest] = Penalties,
 			case Penalty < Lowest_value of 
 				true ->
-					choose_winner(Member_rest, Penalties_rest, {Penalty, Member_head},
+					choose_winner(Member_rest, Penalties_rest, {Penalty, Member_head});
 				false ->
-					choose_winner(Member_rest, Penalties_rest {Lowest_value, Member})
-			end.
+					choose_winner(Member_rest, Penalties_rest, {Lowest_value, Member})
+			end;
 		[] ->
-			Member.
+			Member
 	end.
 
 getpenalties(Memberlist, Penalties, Order) ->
