@@ -9,3 +9,6 @@ Neste gang: en skriver kø, og en skriver driver, så vi kan begynne å teste p�
 Idé: Heisen som mottar knappesignalet gjør beslutningen alene.
 
 Spørre Sivert: Driver og simulator
+
+#Fredag 3.mars:
+Idé: registrerer kø- og fsm- prosessene med global macro, kan vi sende og receive til de uten funksjoner for å gjøre det, blir mer erlangsk
