@@ -1,7 +1,7 @@
 
-- module (fsm).
-- export(init/0, get_state/1, set_state/1, get_direction/1, set_direction/2, get_last_known_floor/1, set_last_known_floor/2).
-- define(FSM_PID, fsm). %Maybe we can send to this process on other computers when it is registered like this?
+- module (state_storage). %Was thinking file is not a state machine, but a state storage?
+- export(init/0).
+- define(STATE_STORAGE_PID, ss). %Maybe we can send to this process on other computers when it is registered like this, at least, the simple add functions used to just send are not needed!
 
 init()->
 	Memberlist = get_member_list(),
@@ -67,14 +67,3 @@ fsm_storage_loop(States,Last_known_floors,Directions) ->
 			fsm_storage_loop(Updated_states);
 
 	end.
-
-get_state(ElevatorId) ->
-	?FSM_PID ! {get_state,{self(),ElevatorId}}.
-	receive
-		{ok,State} ->
-			State
-	end.
-
-set_state(ElevatorId,State) ->
-	?FSM_PID ! {set_state,{ElevatorId,State}}.
-

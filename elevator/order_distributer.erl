@@ -22,7 +22,7 @@ choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
 getpenalties(Memberlist, Penalties, Order) ->
 	case Memberlist of
 		[Member | Rest] ->
-			State = fsm:get_state(Member),
+			State = fsm:get_state(Member), %Can send to FSM and receive in stead, more erlangish I think
 			Last_floor = fsm:get_last_floor(Member),
 			Direction = fsm:get_direction(Member),
 			Penalty = state_penalty(State) + distance_penalty(Order,Last_floor) + turn_penalty(Order,Last_floor,Direction),
