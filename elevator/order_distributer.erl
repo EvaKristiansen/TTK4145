@@ -60,7 +60,7 @@ turn_penalty(Order, Elevator_floor, Elevator_direction) ->
 	Equal_direction = (Order#order.direction == Elevator_direction), 		% True if elevator and signal same direction
 	turn_penalty_record(Elevator_direction, Moving_towards_pling, Equal_direction).
 
-turn_penalty_record(0, _, _) -> 0;
+turn_penalty_record(0, _, _) -> 0; %Define as macros or change name? Is technically not a record, I believe
 turn_penalty_record(_dontcare, true, true) -> 0;
 turn_penalty_record(_dontcare, true, false) -> 2;
 turn_penalty_record(_dontcare, false, _) -> 20.

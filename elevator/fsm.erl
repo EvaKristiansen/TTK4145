@@ -1,48 +1,80 @@
 
 - module (fsm).
-- export(init/0, get_state/1, set_state/1,get_direction/1,set_direction/2,get_last_known_floor/1,set_last_known_floor/2).
+- export(init/0, get_state/1, set_state/1, get_direction/1, set_direction/2, get_last_known_floor/1, set_last_known_floor/2).
 - define(FSM_PID, fsm). %Maybe we can send to this process on other computers when it is registered like this?
 
 init()->
 	Memberlist = get_member_list(),
 	io:fwrite("~w ~n ", [Memberlist]),
-	States = init_storage(dict:new(), Memberlist),
-	register(?FSM_PID, spawn(?MODULE, fsm_storage_loop, [States])).
+	States = init_state_storage(dict:new(), Memberlist),
+	Last_known_floors = init__floor_storage(dict:new(), Memberlist), %Reconsider function name and structure
+	Directions = init_direction_storage(dict:new(), Memberlist),
+	register(?FSM_PID, spawn(?MODULE, fsm_storage_loop, [States,Last_known_floors,Directions])).
 
 get_member_list() ->
 	[node()] ++ nodes().	
 	
 
-init_storage(States,MemberList)->
+init_state_storage(States,MemberList)->
 	case MemberList of 
 		[Member | Rest] ->	
-			New_states = dict:append(Out_name, init , Temp_dict),  %Assuming we will not initialize state machine unless in state init
+			New_states = dict:append(Member, init , States),  %Assuming we will not initialize state machine unless in state init
 			init_storage(New_states,Rest);
 		[] ->
 			States
 	end.
 
+init__floor_storage(Last_known_floors, Memberlist) ->
+	case MemberList of 
+		[Member | Rest] ->	
+			New_last_known_floors = dict:append(Member, -1 , Last_known_floors),  %Assuming the actual last known floor will be set in main, using -1 as dummy variable
+			init_storage(New_last_known_floors,Rest);
+		[] ->
+			Last_known_floors
+	end.
 
-fsm_storage_loop(States) ->
+init__direction_storage(Directions, Memberlist) ->
+	case MemberList of 
+		[Member | Rest] ->	
+			New_directions= dict:append(Member, 0 , Directions),  %Assuming the actual last known floor will be set in main, using 0 as dummy variable(is also rather probable)
+			init_storage(New_last_known_floors,Rest);
+		[] ->
+			Directions
+	end.
+
+fsm_storage_loop(States,Last_known_floors,Directions) ->
 	receive
-		{get, {Pid, Key} ->
+		{get_state, {Pid, Key}} ->
 			{_ok,[State | _Meh]} = dict:find(Key, States),
-			io:fwrite("~w ~n ", [State]),
+			io:fwrite("~w ~n ", [State]), %Debug
 			Pid ! {ok,State},
-			fsm_storage_loop(States);
+			fsm_storage_loop(States,Last_known_floors,Directions);
 
-		{set, {Key,State}} -> 
+		{get_last_known_floor, {Pid, Key}} ->
+			{_ok,[Last_known_floor| _Meh]} = dict:find(Key, Last_known_floors),
+			io:fwrite("~w ~n ", [Last_known_floor]), %Debug
+			Pid ! {ok,Last_known_floor},
+			fsm_storage_loop(States,Last_known_floors,Directions);
+
+		{get_direction,{Pid,Key}} ->
+			{_ok,[Direction| _Meh]} = dict:find(Key, Directions),
+			io:fwrite("~w ~n ", [Direction]), %Debug
+			Pid ! {ok,Direction},
+			fsm_storage_loop(States,Last_known_floors,Directions);
+
+		{set_state, {Key,State}} -> 
 			Updated_states = dict:append(Key, State, dict:erase(Key, States)),
-			fsm_storage_loop(Updated_states);		   					       
+			fsm_storage_loop(Updated_states);
+
 	end.
 
 get_state(ElevatorId) ->
-	?FSM_PID ! {get,{self(),ElevatorId}}.
+	?FSM_PID ! {get_state,{self(),ElevatorId}}.
 	receive
 		{ok,State} ->
 			State
 	end.
 
 set_state(ElevatorId,State) ->
-	?FSM_PID ! {set,{ElevatorId,State}}.
+	?FSM_PID ! {set_state,{ElevatorId,State}}.
 
