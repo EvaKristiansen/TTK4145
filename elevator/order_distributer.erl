@@ -49,32 +49,21 @@ sign(Argument) ->
 		false ->
 			-1
 	end. 
+	
+turn_penalty(Order_floor, Order_direction, Elevator_floor, Elevator_direction) ->
+	Order = #order{floor = Order_floor, direction = Order_direction},
+	turn_penalty(Order, Elevator_floor, Elevator_direction).
 
 turn_penalty(Order, Elevator_floor, Elevator_direction) ->
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
-%	case sign(Relative_position) == sign(Elevator_direction) of 	% Elevator is moving towards pling
-%		true ->
-%			case (Order#order.direction == Elevator_direction) of % Signal and elevator same direction
-%				true ->
-%					0;
-%				false ->
-%					2,
-%			end,
-%		false ->						% Elevator is moving away from pling or standing still
-%			case (Elevator_direction == 0) 
-%				true ->	0;
-%				false -> 20,				
-%			end;
-%	end.
-
-	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction),
-	Equal_direction = (Order#order.direction == Elevator_direction),
+	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction),	% True if elevator moves towards pling
+	Equal_direction = (Order#order.direction == Elevator_direction), 		% True if elevator and signal same direction
 	turn_penalty_record(Elevator_direction, Moving_towards_pling, Equal_direction).
 
-turn_penalty_record(true, _dontcare, _dontcare) -> 0;
+turn_penalty_record(0, _, _) -> 0;
 turn_penalty_record(_dontcare, true, true) -> 0;
 turn_penalty_record(_dontcare, true, false) -> 2;
-turn_penalty_record(_dontcare, false, _dontcare) -> 20.
+turn_penalty_record(_dontcare, false, _) -> 20.
 
 
 		
