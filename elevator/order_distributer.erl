@@ -58,12 +58,12 @@ turn_penalty(Order, Elevator_floor, Elevator_direction) ->
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
 	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction),	% True if elevator moves towards pling
 	Equal_direction = (Order#order.direction == Elevator_direction), 		% True if elevator and signal same direction
-	turn_penalty_record(Elevator_direction, Moving_towards_pling, Equal_direction).
+	get_penalty(Elevator_direction, Moving_towards_pling, Equal_direction).
 
-turn_penalty_record(0, _, _) -> 0; %Define as macros or change name? Is technically not a record, I believe
-turn_penalty_record(_dontcare, true, true) -> 0;
-turn_penalty_record(_dontcare, true, false) -> 2;
-turn_penalty_record(_dontcare, false, _) -> 20.
+get_penalty(0, _, _) -> 0; %Define as macros or change name? Is technically not a record, I believe
+get_penalty(_dontcare, true, true) -> 0;
+get_penalty(_dontcare, true, false) -> 2;
+get_penalty(_dontcare, false, _) -> 20.
 
 
 		
