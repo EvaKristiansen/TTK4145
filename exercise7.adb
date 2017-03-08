@@ -54,7 +54,7 @@ procedure exercise7 is
         Random : Float := Random(Gen);
         if Random>Error_Rate then 
             delay Duration(3+Random);
-            return 10 * x;
+            return 10 + x;
         else 
             delay Duration(0.25+0.25*Random);
             raise Count_Failed;

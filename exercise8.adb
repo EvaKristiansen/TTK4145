@@ -1,27 +1,43 @@
 with Ada.Text_IO, Ada.Integer_Text_IO, Ada.Numerics.Float_Random;
 use  Ada.Text_IO, Ada.Integer_Text_IO, Ada.Numerics.Float_Random;
 
-procedure exercise7 is
+procedure exercise8 is
 
     Count_Failed    : exception;    -- Exception to be raised when counting fails
     Gen             : Generator;    -- Random number generator
 
     protected type Transaction_Manager (N : Positive) is
         entry Finished;
+        entry Wait_Until_Aborted;
         function Commit return Boolean;
         procedure Signal_Abort;
     private
         Finished_Gate_Open  : Boolean := False;
         Aborted             : Boolean := False;
-        Should_Commit       : Boolean := True;
     end Transaction_Manager;
     protected body Transaction_Manager is
         entry Finished when Finished_Gate_Open or Finished'Count = N is
         begin
             ------------------------------------------
             -- PART 3: Complete the exit protocol here
+            if Finished'Count = N-1 then
+                Finished_Gate_Open := True;
+            elsif Finished'Count = 0 then 
+                Finished_Gate_Open := False;
+            end if;
+
             ------------------------------------------
         end Finished;
+
+        -----------------------------------------
+        --- PART 3: WAIT_UNTIL_ABORTED
+        entry Wait_Until_Aborted when Aborted is
+        begin
+            if Finished'Count= 0 then
+                Aborted := False;
+            end if;
+        end Wait_Until_Aborted;
+        -----------------------------------------
 
         procedure Signal_Abort is
         begin
@@ -43,6 +59,15 @@ procedure exercise7 is
     begin
         -------------------------------------------
         -- PART 1: Create the transaction work here
+        Random : Float := Random(Gen);
+        if Random>Error_Rate then 
+            delay Duration(3+Random);
+            return 10 + x;
+        else 
+            delay Duration(0.25+0.25*Random);
+            raise Count_Failed;
+        end if
+
         -------------------------------------------
     end Unreliable_Slow_Add;
 
@@ -62,22 +87,28 @@ procedure exercise7 is
             Round_Num := Round_Num + 1;
 
             ---------------------------------------
-            -- PART 2: Do the transaction work here             
+            -- PART 2: Do the transaction work here 
+
+            select  
+                Manager.Wait_Until_Aborted;
+                Num := Prev+5;
+            then abort
+                begin 
+                    Num := Unreliable_Slow_Add(Prev);
+                exception
+                    when Count_Failed =>           
+                       Manager.Signal_Abort;
+               end;
+            end select;
+
+              
+            Manager.Finished;
             ---------------------------------------
             
-            if Manager.Commit = True then
-                Put_Line ("  Worker" & Integer'Image(Initial) & " comitting" & Integer'Image(Num));
-            else
-                Put_Line ("  Worker" & Integer'Image(Initial) &
-                             " reverting from" & Integer'Image(Num) &
-                             " to" & Integer'Image(Prev));
-                -------------------------------------------
-                -- PART 2: Roll back to previous value here
-                -------------------------------------------
-            end if;
-
+            Put_Line ("  Worker" & Integer'Image(Initial) & " comitting" & Integer'Image(Num));
             Prev := Num;
             delay 0.5;
+            -- Erased some code here
 
         end loop;
     end Transaction_Worker;
@@ -93,12 +124,3 @@ begin
 end exercise7;
 
 
-select
-    triggering_alternative   -- eg. X.Entry_Call;
-    -- code that is run when the triggering_alternative has triggered
-    --   (forward ER code goes here)
-then abort
-    abortable_part
-    -- code that is run when nothing has triggered
-    --   (main functionality)
-end select;
