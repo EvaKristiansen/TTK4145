@@ -1,7 +1,7 @@
 -module (driver).
 -export([start/0, stop/0]).
 -export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1]). %Consider if init is necessary
-%-compile(export_all).
+-compile(export_all).
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
  -define(NUM_FLOORS, 4).
  -define(NUM_BUTTONS, 3).
@@ -9,13 +9,14 @@
  -define(SENSOR_MONITOR_PID, smpid).
  -record(button,{floor,type,state = 0}).
 
-start() ->
+start() -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
-    spawn(?MODULE, init_port, ["../driver/elev_port"]),
+    spawn(?MODULE, init_port, ["driver/elev_port"]),
     %Wait before initializing:
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
     init(),
+    set_motor_direction(up), %DEBUG
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
     spawn(fun() -> sensor_poller() end()).
 
@@ -30,10 +31,11 @@ sensor_poller()->
 
 sensor_poller(Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
-	{driver, New_floor} = get_floor_sensor_signal(),
+	New_floor = get_floor_sensor_signal(),
 	case (New_floor /= Last_floor) and (New_floor /= -1) of %Reached a new floor if it is not last floor or no floor
 		true ->
-			?SENSOR_MONITOR_PID ! {new_floor_reached, New_floor},
+			io:fwrite("New floor reached ~w ~n ", [New_floor]), %DEBUG
+			%?SENSOR_MONITOR_PID ! {new_floor_reached, New_floor},
 			true;
 		false ->
 			false
@@ -50,11 +52,12 @@ button_sensor_poller(Old_buttons, Updated_buttons) ->
 			Floor = Button#button.floor,
 			ButtonType = Button#button.type,
 			State = Button#button.state,
-			{driver, New_state} = get_button_signal(ButtonType,Floor),
+			New_state = get_button_signal(ButtonType,Floor),
 
 			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
-				true -> 
-					?SENSOR_MONITOR_PID ! {button_pressed, ButtonType, Floor},
+				true ->
+					io:fwrite("Button pressed ~w ~w ~n ", [ButtonType,Floor]), %DEBUG
+					%?SENSOR_MONITOR_PID ! {button_pressed, ButtonType, Floor}, Need to register Pid to make it work
 					true;
 				false  ->
 					false
@@ -78,13 +81,13 @@ get_floor_sensor_signal() -> call_port({elev_get_floor_sensor_signal}).
 
 %%%%%%% COMMUNICATION WITH C PORT %%%%%%%%
 init_port(ExtPrg) ->
+	io:fwrite("In init_port ~n ", []), %DEBUG
     register(driver, self()),
     process_flag(trap_exit, true),
     Port = open_port({spawn, ExtPrg}, [{packet, 2}]),
     loop(Port).
 
 loop(Port) ->
-
     receive
 	{call, Caller, Msg} ->
 	    Port ! {self(), {command, encode(Msg)}},
@@ -105,15 +108,17 @@ loop(Port) ->
     end.
 
 call_port(Msg) ->
+	io:fwrite("Sending ~w ~n ", [Msg]), %DEBUG
     driver ! {call, self(), Msg},
     receive
 	{driver, Result} ->
+		io:fwrite("Received ~w ~n ", [Result]), %DEBUG
 	    Result
     end.
 
 
 %%%%%%% ENCODING MESSAGES FOR C PORT %%%%%%%%
-encode({elev_init}) -> [1];
+encode(elev_init) -> [1];
 
 encode({elev_set_motor_direction, up}) -> [2,1];
 encode({elev_set_motor_direction, stop}) -> [2,0];
