@@ -3,8 +3,6 @@
 - compile(export_all).
 - record(order,{floor,direction}).
 
- 
-
 choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
 	case Memberlist of 
 		[Member_head | Member_rest] -> 
@@ -41,7 +39,6 @@ state_penalty(stuck) -> 1000.
 distance_penalty(Order,Elevator_floor) ->
 	abs(Order#order.floor - Elevator_floor).
 
-
 sign(Argument) ->
 	case(Argument > 0) of
 		true -> 
@@ -65,11 +62,7 @@ get_penalty(_dontcare, true, true) -> 0;
 get_penalty(_dontcare, true, false) -> 2;
 get_penalty(_dontcare, false, _) -> 20.
 
-
-		
-
 distribute_order(Order) -> 
 	Memberlist = [node()|nodes()],
 	Penalties = getpenalties(Memberlist,[],Order),	
 	choose_winner(Memberlist, Penalties, {10000, dummy@member}).	
-
