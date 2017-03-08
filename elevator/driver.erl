@@ -1,6 +1,6 @@
 -module (driver).
 -export([start/0, stop/0]).
-%-export( [init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, get_button_signal/2, get_floor_sensor_signal/0]).
+-export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1]). %Consider if init is necessary
 %-compile(export_all).
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
  -define(NUM_FLOORS, 4).
@@ -16,7 +16,7 @@ start() ->
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
     init(),
-    %Start sensor monitor that can send to process with PID MONITORPID in supermodule:
+    %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
     spawn(fun() -> sensor_poller() end()).
 
 stop() ->
@@ -24,29 +24,11 @@ stop() ->
 
 %%%%%%% SENSOR INPUT POLLER %%%%%%%%
 sensor_poller()->
-	% Start for last_floor = -1 and "no_buttons_pressed" 
+	% Start for last_floor = -1 and "no buttons pressed" 
 	Buttons = create_buttons([],0),
 	sensor_poller(-1, Buttons).
 
-create_buttons(Buttons,Floor) ->
-	if
-		Floor == 0 -> %At bottom floor
-			New_buttons = Buttons ++ [#button{floor=Floor,type = inner}, #button{floor=Floor,type = up}],
-			create_buttons(New_buttons,Floor+1);
-			
-		Floor == ?NUM_FLOORS - 1  -> %At top floor
-			New_buttons = Buttons ++ [#button{floor=Floor,type = down}, #button{floor=Floor,type = inner}];
-			create_buttons(New_buttons,Floor+1);
-
-		(Floor > 0) and (Floor < ?NUM_FLOORS -1)  -> %At middle floor
-			New_buttons = Buttons ++ [#button{floor=Floor,type = down}, #button{floor=Floor,type = inner},#button{floor=Floor,type = up}];
-			create_buttons(New_buttons,Floor+1);
-			
-		true -> %Out of scope
-			Buttons
-	end.
-
-sensor_poller(Last_floor, Last_button_states) -> % (Variable, List)
+sensor_poller(Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	{driver, New_floor} = get_floor_sensor_signal(),
 	case (New_floor /= Last_floor) and (New_floor /= -1) of %Reached a new floor if it is not last floor or no floor
@@ -57,9 +39,32 @@ sensor_poller(Last_floor, Last_button_states) -> % (Variable, List)
 			false
 	end,
 	%Need to check for button sensor input
-	button_sensor_poller(Last_button_states,[],0),
-	sensor_poller(New_floor,New_button_states).
+	Updated_buttons = button_sensor_poller(Buttons,[]),
+	timer:sleep(50),
+	sensor_poller(New_floor,Updated_buttons).
 
+button_sensor_poller(Old_buttons, Updated_buttons) ->
+	case Old_buttons of
+
+		[Button | Rest ] -> %Still have buttons to check
+			Floor = Button#button.floor,
+			ButtonType = Button#button.type,
+			State = Button#button.state,
+			{driver, New_state} = get_button_signal(ButtonType,Floor),
+
+			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
+				true -> 
+					?SENSOR_MONITOR_PID ! {button_pressed, ButtonType, Floor},
+					true;
+				false  ->
+					false
+			end,
+
+			New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
+			button_sensor_poller(Rest,New_buttons);
+		[] -> %No more buttons to check, return
+			Updated_buttons
+	end.
 
 %%%%%%% ERL VERSIONS OF C FUNCTIONS %%%%%%%%
 init() -> call_port(elev_init).
@@ -132,3 +137,16 @@ encode({elev_get_button_signal,inner,Floor}) -> [6,2,Floor];
 encode({elev_get_button_signal,down,Floor}) -> [6,1,Floor];
 
 encode({elev_get_floor_sensor_signal}) -> [7].
+
+%%%%%% HELPER FUNCTIONS %%%%%%
+create_buttons(Buttons,0) -> %At bottom floor
+	New_buttons = Buttons ++ [#button{floor=0,type = inner}, #button{floor=0,type = up}],
+	create_buttons(New_buttons,1);
+
+create_buttons(Buttons,Floor) when (Floor>0) and (Floor < ?NUM_FLOORS-1)-> %At middle floor
+	New_buttons = Buttons ++ [#button{floor=Floor,type = down}, #button{floor=Floor,type = inner},#button{floor=Floor,type = up}],
+	create_buttons(New_buttons,Floor+1);
+			
+create_buttons(Buttons,?NUM_FLOORS-1) -> %At top floor
+	Buttons ++ [#button{floor= ?NUM_FLOORS-1 ,type = down}, #button{floor=?NUM_FLOORS-1 ,type = inner}].
+
