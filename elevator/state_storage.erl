@@ -6,40 +6,23 @@
 init()->
 	Memberlist = get_member_list(),
 	io:fwrite("~w ~n ", [Memberlist]),
-	States = init_state_storage(dict:new(), Memberlist),
-	Last_known_floors = init_floor_storage(dict:new(), Memberlist), %Reconsider function name and structure
-	Directions = init_direction_storage(dict:new(), Memberlist),
+	States = init_storage(dict:new(), Memberlist, init),
+	Last_known_floors = init_storage(dict:new(), Memberlist, -1), 
+	Directions = init_storage(dict:new(), Memberlist, 0),
+
 	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])).
 
 get_member_list() ->
 	[node()] ++ nodes().	
 	
 
-init_state_storage(States,MemberList)-> %Consider merging these three functions!
+init_storage(StorageList,MemberList,Initial_value)-> %Consider merging these three functions!
 	case MemberList of 
 		[Member | Rest] ->	
-			New_states = dict:append(Member, init , States),  %Assuming we will not initialize state machine unless in state init
-			init_state_storage(New_states,Rest);
+			New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
+			init_state_storage(New_storage,Rest);
 		[] ->
-			States
-	end.
-
-init_floor_storage(Last_known_floors, MemberList) ->
-	case MemberList of 
-		[Member | Rest] ->	
-			New_last_known_floors = dict:append(Member, -1 , Last_known_floors),  %Assuming the actual last known floor will be set in main, using -1 as dummy variable
-			init_floor_storage(New_last_known_floors,Rest);
-		[] ->
-			Last_known_floors
-	end.
-
-init_direction_storage(Directions, MemberList) ->
-	case MemberList of 
-		[Member | Rest] ->	
-			New_directions= dict:append(Member, 0 , Directions),  %Assuming the actual last known floor will be set in main, using 0 as dummy variable(is also rather probable)
-			init_direction_storage(New_directions,Rest);
-		[] ->
-			Directions
+			StorageList
 	end.
 
 storage_loop(States,Last_known_floors,Directions) ->
