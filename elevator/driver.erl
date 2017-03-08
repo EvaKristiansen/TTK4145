@@ -32,7 +32,7 @@ sensor_poller()->
 sensor_poller(Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	New_floor = get_floor_sensor_signal(),
-	case (New_floor /= Last_floor) and (New_floor /= -1) of %Reached a new floor if it is not last floor or no floor
+	case (New_floor /= Last_floor) and (New_floor /= 255) of %Reached a new floor if it is not last floor or no floor
 		true ->
 			io:fwrite("New floor reached ~w ~n ", [New_floor]), %DEBUG
 			%?SENSOR_MONITOR_PID ! {new_floor_reached, New_floor},
@@ -108,11 +108,9 @@ loop(Port) ->
     end.
 
 call_port(Msg) ->
-	io:fwrite("Sending ~w ~n ", [Msg]), %DEBUG
     driver ! {call, self(), Msg},
     receive
 	{driver, Result} ->
-		io:fwrite("Received ~w ~n ", [Result]), %DEBUG
 	    Result
     end.
 
