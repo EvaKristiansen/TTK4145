@@ -12,3 +12,6 @@ Spørre Sivert: Driver og simulator
 
 #Fredag 3.mars:
 Idé: registrerer kø- og fsm- prosessene med global macro, kan vi sende og receive til de uten funksjoner for å gjøre det, blir mer erlangsk
+
+#Onsdag 8.mars:
+Må finne ut hvordan å registrere prosesser uten at de står ubrukt hvis de ikkje eksporteres. Er rotete. Spør Sivert om dette på Fredag
