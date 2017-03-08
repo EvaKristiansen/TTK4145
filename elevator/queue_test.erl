@@ -10,7 +10,7 @@
 - define(INNER, "_inner").
 - define(OUTER, "_outer").
 
-
+%Kan vi legge til -define(ORDER_TYPES,[up,down,inner]) eller noe i den duren?
 
 
 init()->
