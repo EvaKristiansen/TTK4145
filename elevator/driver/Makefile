@@ -8,7 +8,7 @@ CFLAGS = -std=gnu11 -g -Wall -Wextra
 LDFLAGS = -lcomedi -lm
 
 # list of sources
-ELEVSRC = elev_port.c erl_comm.c elev.c io.c main.c
+ELEVSRC = elev_port.c elev.c io.c erl_comm.c
 
 # program executable file name.
 TARGET = elev_port
