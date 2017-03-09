@@ -12,14 +12,16 @@
 
 start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
-    spawn(?MODULE, init_port, ["driver/elev_port"]),
+	spawn(fun() -> init_port("driver/elev_port") end),
+    %spawn(?MODULE, init_port, ["driver/elev_port"]),
     %Wait before initializing:
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
     init(),
-    set_motor_direction(up), %DEBUG
+    io:fwrite("Passed init ~w ~n ", [self()]), %DEBUG
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
-    spawn(fun() -> sensor_poller(Sensor_monitor_pid) end()).
+    spawn(fun() -> sensor_poller(Sensor_monitor_pid) end()). %DEBUG
+ 
 
 stop() ->
     driver ! stop.
@@ -35,7 +37,8 @@ sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	New_floor = get_floor_sensor_signal(),
 	case (New_floor /= Last_floor) and (New_floor /= [255]) of %Reached a new floor if it is not last floor or no floor
 		true ->
-			Sensor_monitor_pid ! {new_floor_reached, New_floor},
+			io:fwrite("New floor reached ~w ~n ", New_floor), %DEBUG
+			%Sensor_monitor_pid ! {new_floor_reached, New_floor},
 			true;
 		false ->
 			false
@@ -52,11 +55,12 @@ button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
 			Floor = Button#button.floor,
 			ButtonType = Button#button.type,
 			State = Button#button.state,
-			New_state = get_button_signal(ButtonType,Floor),
+			New_state = lists:nth(1, get_button_signal(ButtonType,Floor)),
 
 			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
 				true ->
-					 Sensor_monitor_pid ! {button_pressed, ButtonType, Floor},
+					io:fwrite("Button pressed, button type: ~w button floor: ~w ~n ", [ButtonType, Floor]), %DEBUG
+					%Sensor_monitor_pid ! {button_pressed, ButtonType, Floor},
 					true;
 				false  ->
 					false
@@ -81,7 +85,6 @@ get_floor_sensor_signal() -> call_port({elev_get_floor_sensor_signal}).
 
 %%%%%%% COMMUNICATION WITH C PORT %%%%%%%%
 init_port(ExtPrg) ->
-	io:fwrite("In init_port ~n ", []), %DEBUG
     register(driver, self()),
     process_flag(trap_exit, true),
     Port = open_port({spawn, ExtPrg}, [{packet, 2}]),
@@ -120,7 +123,7 @@ encode(elev_init) -> [1];
 
 encode({elev_set_motor_direction, up}) -> [2,1];
 encode({elev_set_motor_direction, stop}) -> [2,0];
-encode({elev_set_motor_direction, down}) -> [2,-1];
+encode({elev_set_motor_direction, down}) -> [2,2];
 
 encode({elev_set_button_lamp,up, Floor ,on}) -> [3,0,Floor,1];
 encode({elev_set_button_lamp,inner, Floor,on}) -> [3,2,Floor,1];
