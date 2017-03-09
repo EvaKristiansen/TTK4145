@@ -1,15 +1,16 @@
 -module (driver).
--export([start/0, stop/0]).
+-export([start/1, stop/0]).
 -export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1]). %Consider if init is necessary
 -compile(export_all).
+
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
+
  -define(NUM_FLOORS, 4).
  -define(NUM_BUTTONS, 3).
  -define(BUTTON_TYPES, [up,inner,down]).
- -define(SENSOR_MONITOR_PID, smpid).
  -record(button,{floor,type,state = 0}).
 
-start() -> %Sensor monitor pid as argument for easy read
+start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
     spawn(?MODULE, init_port, ["driver/elev_port"]),
     %Wait before initializing:
@@ -18,34 +19,33 @@ start() -> %Sensor monitor pid as argument for easy read
     init(),
     set_motor_direction(up), %DEBUG
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
-    spawn(fun() -> sensor_poller() end()).
+    spawn(fun() -> sensor_poller(Sensor_monitor_pid) end()).
 
 stop() ->
     driver ! stop.
 
 %%%%%%% SENSOR INPUT POLLER %%%%%%%%
-sensor_poller()->
+sensor_poller(Sensor_monitor_pid)->
 	% Start for last_floor = -1 and "no buttons pressed" 
 	Buttons = create_buttons([],0),
-	sensor_poller(-1, Buttons).
+	sensor_poller(Sensor_monitor_pid, -1, Buttons).
 
-sensor_poller(Last_floor, Buttons) -> % (Variable, List)
+sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	New_floor = get_floor_sensor_signal(),
 	case (New_floor /= Last_floor) and (New_floor /= [255]) of %Reached a new floor if it is not last floor or no floor
 		true ->
-			io:fwrite("New floor reached ~w ~n ", [New_floor]), %DEBUG
-			%?SENSOR_MONITOR_PID ! {new_floor_reached, New_floor},
+			Sensor_monitor_pid ! {new_floor_reached, New_floor},
 			true;
 		false ->
 			false
 	end,
 	%Need to check for button sensor input
-	Updated_buttons = button_sensor_poller(Buttons,[]),
+	Updated_buttons = button_sensor_poller(Sensor_monitor_pid, Buttons,[]),
 	timer:sleep(50),
-	sensor_poller(New_floor,Updated_buttons).
+	sensor_poller(Sensor_monitor_pid, New_floor,Updated_buttons).
 
-button_sensor_poller(Old_buttons, Updated_buttons) ->
+button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
 	case Old_buttons of
 
 		[Button | Rest ] -> %Still have buttons to check
@@ -56,15 +56,15 @@ button_sensor_poller(Old_buttons, Updated_buttons) ->
 
 			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
 				true ->
-					io:fwrite("Button pressed ~w ~w ~n ", [ButtonType,Floor]), %DEBUG
-					%?SENSOR_MONITOR_PID ! {button_pressed, ButtonType, Floor}, Need to register Pid to make it work
+					 Sensor_monitor_pid ! {button_pressed, ButtonType, Floor},
 					true;
 				false  ->
 					false
 			end,
 
 			New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
-			button_sensor_poller(Rest,New_buttons);
+			button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons);
+
 		[] -> %No more buttons to check, return
 			Updated_buttons
 	end.
