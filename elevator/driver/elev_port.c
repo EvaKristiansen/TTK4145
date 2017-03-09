@@ -1,6 +1,7 @@
 #include "elev.h"
 #include "erl_comm.h"
 #include "elev_port.h"
+#include <stdio.h>
 
 /* Should be functional now(while might not do the trick), option: look over the nested cases.*/
 /* Switches to fit with the erlang encoding in driver.erl*/
@@ -11,14 +12,13 @@ int main() {
 
   while (read_cmd(buf) > 0) {
     command = buf[0];
-    
     switch(command){
       case(INIT_COMMAND):
         elev_init();
         break;
 
       case(MOTOR_DIRECTION_COMMAND):
-        elev_set_motor_direction(buf[1]);
+        res = elev_set_motor_direction(buf[1]);
         break;
 
       case(BUTTON_LAMP_COMMAND):
