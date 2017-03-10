@@ -7,7 +7,7 @@ distribute_order(Order) ->
 	Memberlist = [node()|nodes()],
 	Penalties = getpenalties(Memberlist,[],Order),	
 	Winner = choose_winner(Memberlist, Penalties, {10000, dummy@member}),
-	queue_module:add_to_queue(Winner),
+	queue_module:add_to_queue(Winner, Order),
 	Winner.
 
 choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
@@ -27,9 +27,9 @@ choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
 getpenalties(Memberlist, Penalties, Order) ->
 	case Memberlist of
 		[Member | Rest] ->
-			State = fsm:get_state(Member), %Can send to FSM and receive in stead, more erlangish I think
-			Last_floor = fsm:get_last_floor(Member),
-			Direction = fsm:get_direction(Member),
+			State = state_storage:get_state(Member), %Can send to FSM and receive in stead, more erlangish I think
+			Last_floor = state_storage:get_last_floor(Member),
+			Direction = state_storage:get_direction(Member),
 			Penalty = state_penalty(State) + distance_penalty(Order,Last_floor) + turn_penalty(Order,Last_floor,Direction),
 			getpenalties(Rest,[Penalty|Penalties],order); 
 		[] ->

@@ -77,8 +77,7 @@ queue_storage_loop(Queues) ->
 	end.
 
 
-add_to_queue(ElevatorID, Floor, Type) -> % Er en dum funksjon, som bare setter inn basert på input, order_distributer bestemmer hvor
-	Order = #order{floor = Floor, type = Type},
+add_to_queue(ElevatorID, Order) -> % Er en dum funksjon, som bare setter inn basert på input, order_distributer bestemmer hvor
 	case Order#order.type == inner of 
 		true ->
 			Key = atom_to_list(ElevatorID) ++ "_inner";
@@ -124,7 +123,7 @@ is_order(Floor, Type, MemberList) ->
 		[] ->
 			false
 	end.
-	
+
 is_floor_in_queue(ElevatorID, Floor) ->
 	InKey = atom_to_list(ElevatorID) ++ "_inner",
 	OutKey = atom_to_list(ElevatorID) ++ "_outer",
