@@ -31,6 +31,7 @@ getpenalties(Memberlist, Penalties, Order) ->
 	end.		
 	
 state_penalty(init) -> 1000;
+state_penalty(unknown) -> 1000; %TODO evaluer denne
 state_penalty(idle) -> 10;
 state_penalty(moving) -> 5;
 state_penalty(door_open) -> 7;
