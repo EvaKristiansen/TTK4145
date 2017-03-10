@@ -20,13 +20,12 @@ init_storage(StorageList,MemberList,Initial_value)-> %Consider merging these thr
 	case MemberList of 
 		[Member | Rest] ->	
 			New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
-			init_state_storage(New_storage,Rest);
+			init_storage(New_storage,Rest,Initial_value);
 		[] ->
 			StorageList
 	end.
 
 storage_loop(States,Last_known_floors,Directions) ->
-	io:fwrite("Hallo fra loop ~n ", []),
 	receive
 		{get_state, {Pid, Key}} ->
 			{_ok,[State | _Meh]} = dict:find(Key, States),
@@ -63,11 +62,32 @@ storage_loop(States,Last_known_floors,Directions) ->
 			{ok,_} ->
 				Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)), %TODO tenk på unknown
 				storage_loop(Updated_states,Last_known_floors,Directions);
-				ok;
 			error -> 
 				Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
-				Updated_last_known_floors = dict:append(Key, -1 ,Last_known_floors),
-				Updated_directions = dict:append(Key, 0, Directions)
+				Updated_last_known_floors = dict:append(New_member, -1 ,Last_known_floors),
+				Updated_directions = dict:append(New_member, 0, Directions),
+				storage_loop(Updated_states,Updated_last_known_floors,Updated_directions)
 			end
 
+	end.
+
+get_state(ElevatorID) ->
+	?STATE_STORAGE_PID ! {get_state, {self(),ElevatorID}},
+	receive
+		{ok, State} ->
+			State
+	end.
+
+get_last_floor(ElevatorID) ->
+	?STATE_STORAGE_PID ! {get_last_known_floor, {self(),ElevatorID}},
+	receive
+		{ok, Floor} ->
+			Floor
+	end.
+
+get_direction(ElevatorID) ->
+?STATE_STORAGE_PID ! {get_direction, {self(),ElevatorID}},
+	receive
+		{ok, Direction} ->
+			Direction
 	end.
