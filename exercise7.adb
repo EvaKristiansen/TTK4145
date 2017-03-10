@@ -26,7 +26,7 @@ procedure exercise7 is
             elsif Finished'Count = 0 then 
                 Finished_Gate_Open := False;
                 Aborted := False;
-            end if
+            end if;
 
             ------------------------------------------
         end Finished;
@@ -48,17 +48,17 @@ procedure exercise7 is
     
     function Unreliable_Slow_Add (x : Integer) return Integer is
     Error_Rate : Constant := 0.15;  -- (between 0 and 1)
+    Randfloat : Float := Random(Gen);
     begin
         -------------------------------------------
         -- PART 1: Create the transaction work here
-        Random : Float := Random(Gen);
-        if Random>Error_Rate then 
-            delay Duration(3+Random);
+        if Randfloat>Error_Rate then 
+            delay Duration(3.0+Randfloat);
             return 10 + x;
         else 
-            delay Duration(0.25+0.25*Random);
+            delay Duration(0.25+0.25*Randfloat);
             raise Count_Failed;
-        end if
+        end if;
 
         -------------------------------------------
     end Unreliable_Slow_Add;

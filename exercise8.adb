@@ -9,12 +9,12 @@ procedure exercise8 is
     protected type Transaction_Manager (N : Positive) is
         entry Finished;
         entry Wait_Until_Aborted;
-        function Commit return Boolean;
         procedure Signal_Abort;
     private
         Finished_Gate_Open  : Boolean := False;
         Aborted             : Boolean := False;
     end Transaction_Manager;
+
     protected body Transaction_Manager is
         entry Finished when Finished_Gate_Open or Finished'Count = N is
         begin
@@ -33,7 +33,7 @@ procedure exercise8 is
         --- PART 3: WAIT_UNTIL_ABORTED
         entry Wait_Until_Aborted when Aborted is
         begin
-            if Finished'Count= 0 then
+            if Wait_Until_Aborted'Count= 0 then
                 Aborted := False;
             end if;
         end Wait_Until_Aborted;
@@ -44,11 +44,6 @@ procedure exercise8 is
             Aborted := True;
         end Signal_Abort;
 
-        function Commit return Boolean is
-        begin
-            return Should_Commit;
-        end Commit;
-        
     end Transaction_Manager;
 
 
@@ -56,17 +51,17 @@ procedure exercise8 is
     
     function Unreliable_Slow_Add (x : Integer) return Integer is
     Error_Rate : Constant := 0.15;  -- (between 0 and 1)
+    Randfloat : Float := Random(Gen);
     begin
         -------------------------------------------
         -- PART 1: Create the transaction work here
-        Random : Float := Random(Gen);
-        if Random>Error_Rate then 
-            delay Duration(3+Random);
+        if Randfloat>Error_Rate then 
+            delay Duration(3.0+Randfloat);
             return 10 + x;
         else 
-            delay Duration(0.25+0.25*Random);
+            delay Duration(0.25+0.25*Randfloat);
             raise Count_Failed;
-        end if
+        end if;
 
         -------------------------------------------
     end Unreliable_Slow_Add;
@@ -121,6 +116,6 @@ procedure exercise8 is
 
 begin
     Reset(Gen); -- Seed the random number generator
-end exercise7;
+end exercise8;
 
 
