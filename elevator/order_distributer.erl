@@ -1,7 +1,15 @@
 - module (order_distributer).
-- export([distribute_order/1]).
+- export([distribute_order/1,get_next_order/1]).
 - compile(export_all).
 - record(order,{floor,type}).
+
+get_next_order(ElevatorID) ->
+	In_option = queue_module:get_first_in_queue(ElevatorID,"_inner"),
+	Out_option = queue_module:get_first_in_queue(ElevatorID, "_outer"),
+	[In_penalty] = getpenalties([ElevatorID],[],In_option), %Will hopefully be list with one member
+	[Out_penalty] = getpenalties([ElevatorID],[],Out_option),
+	lists:min([In_penalty,Out_penalty]).
+
 
 distribute_order(Order) -> 
 	Memberlist = [node()|nodes()],
