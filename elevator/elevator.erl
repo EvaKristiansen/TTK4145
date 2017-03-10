@@ -5,6 +5,7 @@
 - define(STATE_STORAGE_PID, ss).
 - define(DRIVER_MANAGER_PID, dmpid).
 - record(order,{floor,type}).
+ -record(button,{floor,type,state = 0}).
 - compile(export_all).
 
 start() ->
@@ -18,8 +19,8 @@ start() ->
 	register(?ELEVATOR_MONITOR_PID, spawn(fun() -> elevator_monitor() end)), %Should be init-versions of functions
 	driver:start(?ELEVATOR_MONITOR_PID),
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener() end)),
-	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)).
-
+	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
+	spawn(fun() -> button_light_manager() end).
 
 
 
@@ -59,8 +60,6 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{button_pressed, Floor, ButtonType} ->
-			%Check if we are in this floor before doing shit
-			driver:set_button_lamp(ButtonType,Floor,on),
 			Order = #order{floor = Floor, type = ButtonType},
 			Winner = order_distributer:distribute_order(Order),
 			add_to_queue_on_nodes(Winner,Order),
@@ -92,7 +91,6 @@ add_to_queue_on_nodes(Elevator, Order) ->
 remote_listener() ->
 	receive
 		{add_order, Elevator, Order} ->
-			driver:set_button_lamp(Order#order.type,Order#order.floor,on),
 			queue_module:add_to_queue(Elevator, Order);
 
 		{update_states, Elevator, State, Direction, Last_floor} ->
@@ -123,25 +121,37 @@ driver_manager() ->
 	end.
 
 order_poller() -> %Checks if my elevator has place it should be, when in state idle
-	io:fwrite("Starting order poller ~n",[]), %DEBUG
 	Next = order_distributer:get_next_order(node()),
-	io:fwrite("Next is ~w ~n",[Next]), %DEBUG
 	case Next of
 		false ->
-			io:fwrite("Order poller got false ~n",[]), %DEBUG
 			timer:sleep(3000), %TODO check poll period 
 			order_poller();
 
 		Order ->
 			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
-			io:fwrite("Elevator floor is ~w ~n",[Elevator_floor]), %DEBUG
-			Relative_position = Order#order.floor - Elevator_floor, %TODO reply
+			Relative_position = Order#order.floor - Elevator_floor,
 			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
 	end.
 
+button_light_manager() ->
+	Buttons = driver:create_buttons([],0),
+	lists:foreach(fun(Button) -> set_button(Button) end,Buttons),
+	timer:sleep(50),
+	button_light_manager().
 
+set_button(Button)-> %Not happy with name, but tired
+	Toset = queue_module:is_order(button_to_order(Button)),
+	case Toset of
+		true ->
+			driver:set_button_lamp(Button#button.type,Button#button.floor,on);
+		false ->
+			driver:set_button_lamp(Button#button.type,Button#button.floor,off)
+	end.
 
 %%%%%%%%%%%%%%% HELPER FUNCTIONS; MAY BE REMOVABLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
 direction(0) -> stop;
 direction(Relative_position) when Relative_position > 0 -> up;
 direction(Relative_position) when Relative_position < 0 -> down.
+
+button_to_order(Button) ->
+	#order{floor= Button#button.floor, type = Button#button.type}.
