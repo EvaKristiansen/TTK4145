@@ -72,24 +72,10 @@ get_penalty(_dontcare, false, _) -> 20.
 
 	
 
-order_type_to_int(Type) ->
-	case Type of
-		down ->
-			Num = -1;
-		inner ->
-			Num = 0;
-		up ->
-			Num = 1
-	end,
-	Num.
+order_type_to_int(down) -> -1; %Consider merging with function below
+order_type_to_int(inner) -> 0;
+order_type_to_int(up) -> 1.
 
-direction_to_int(Direction) ->
-	case Direction of
-		down ->
-			Num = -1;
-		stop ->
-			Num = 0;
-		up ->
-			Num = 1
-	end,
-	Num.
+direction_to_int(down) -> -1;
+direction_to_int(stop) -> 0;
+direction_to_int(up) -> 1.

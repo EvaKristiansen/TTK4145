@@ -1,6 +1,6 @@
 -module(driver).
 -export([start/1, stop/0]).
--export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, turn_all_the_lights_off/0, reset_order_lights/1]). %Consider if init and turn all off is necessary
+-export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, turn_all_the_lights_off/0, reset_button_lights/1]). %Consider if init and turn all off is necessary
 
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
 
@@ -77,7 +77,7 @@ set_floor_indicator(Floor) -> call_port({elev_set_floor_indicator,Floor}).
 set_door_open_lamp(Value) -> call_port({elev_set_door_open_lamp, Value}).
 get_button_signal(ButtonType,Floor) -> call_port({elev_get_button_signal,ButtonType,Floor}).
 get_floor_sensor_signal() -> call_port({elev_get_floor_sensor_signal}).
-reset_order_lights(Floor) -> call_port({elev_reset_order_lights,Floor}).
+reset_button_lights(Floor) -> call_port({elev_reset_order_lights,Floor}).
 turn_all_the_lights_off() -> call_port({elev_turn_all_the_lights_off}).
 
 %%%%%%% COMMUNICATION WITH C PORT %%%%%%%%
