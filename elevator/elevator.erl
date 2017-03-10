@@ -73,7 +73,7 @@ elevator_monitor() ->
 
 		{new_destination, stop} ->
 			io:fwrite("Got new destination at direction: ~w ~n",[stop]), %DEBUG
-			Floor = state_storage:get_last_floor(self()),
+			Floor = state_storage:get_last_floor(node()),
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
 			queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
 			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
