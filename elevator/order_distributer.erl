@@ -1,7 +1,7 @@
 - module (order_distributer).
 - export([distribute_order/1]).
 - compile(export_all).
-- record(order,{floor,direction}).
+- record(order,{floor,type}).
 
 choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
 	case Memberlist of 
@@ -48,14 +48,14 @@ sign(Argument) ->
 			-1
 	end. 
 	
-turn_penalty(Order_floor, Order_direction, Elevator_floor, Elevator_direction) ->
-	Order = #order{floor = Order_floor, direction = Order_direction},
-	turn_penalty(Order, Elevator_floor, Elevator_direction).
+turn_penalty(Order_floor, Order_type, Elevator_floor, Elevator_direction) ->
+	Order = #order{floor = Order_floor, type = Order_type},
+	turn_penalty(Order, Elevator_floor, direction_to_int(Elevator_direction)).
 
 turn_penalty(Order, Elevator_floor, Elevator_direction) ->
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
 	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction),	% True if elevator moves towards pling
-	Equal_direction = (Order#order.direction == Elevator_direction), 		% True if elevator and signal same direction
+	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction), 		% True if elevator and signal same direction
 	get_penalty(Elevator_direction, Moving_towards_pling, Equal_direction).
 
 get_penalty(0, _, _) -> 0; %Define as macros or change name? Is technically not a record, I believe
@@ -67,3 +67,25 @@ distribute_order(Order) ->
 	Memberlist = [node()|nodes()],
 	Penalties = getpenalties(Memberlist,[],Order),	
 	choose_winner(Memberlist, Penalties, {10000, dummy@member}).	
+
+order_type_to_int(Type) ->
+	case Type of
+		down ->
+			Num = -1;
+		inner ->
+			Num = 0;
+		up ->
+			Num = 1
+	end,
+	Num.
+
+direction_to_int(Direction) ->
+	case Direction of
+		down ->
+			Num = -1;
+		stop ->
+			Num = 0;
+		up ->
+			Num = 1
+	end,
+	Num.
