@@ -1,6 +1,6 @@
 -module(driver).
 -export([start/1, stop/0]).
--export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, turn_all_the_lights_off/0, reset_button_lights/1]). %Consider if init and turn all off is necessary
+-export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, turn_all_the_lights_off/0, reset_button_lights/1, create_buttons/2]). %Consider if init and turn all off is necessary
 
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
 
@@ -43,7 +43,7 @@ sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	%Need to check for button sensor input
 	Updated_buttons = button_sensor_poller(Sensor_monitor_pid, Buttons,[]),
 	timer:sleep(50),
-	sensor_poller(Sensor_monitor_pid, New_floor,Updated_buttons).
+	sensor_poller(Sensor_monitor_pid, New_floor, Updated_buttons).
 
 button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
 	case Old_buttons of
