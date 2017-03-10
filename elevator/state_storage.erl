@@ -56,6 +56,14 @@ storage_loop(States,Last_known_floors,Directions) ->
 
 		{set_direction, {Key,Direction}} -> 
 			Updated_directions = dict:append(Key, Direction, dict:erase(Key, Directions)),
-			storage_loop(States,Last_known_floors,Updated_directions)
+			storage_loop(States,Last_known_floors,Updated_directions);
+
+		{update, New_member} ->
+			case dict:find(New_member,States) of
+			{ok,_} ->
+				Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)), %TODO tenk på unknown
+				storage_loop(Updated_states,Last_known_floors,Directions);
+				ok;
+			error -> 
 
 	end.
