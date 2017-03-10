@@ -10,9 +10,10 @@
 start() ->
 	connection:init(),
 	
-	timer:sleep(60000),
+	timer:sleep(60),
 
 	queue_module:init(),
+	state_storage:init(),
 
 	register(?ELEVATOR_MONITOR_PID, spawn(fun() -> elevator_monitor() end)), 
 	driver:start(?ELEVATOR_MONITOR_PID),
@@ -24,7 +25,10 @@ start() ->
 elevator_monitor() ->
 	receive
 		{new_floor_reached,Floor} ->
+
 			driver:set_floor_indicator(Floor),
+			?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
+
 			Stop_for_order = queue_module:is_floor_in_queue(node(),Floor),
 
 			case Stop_for_order of
@@ -68,7 +72,7 @@ add_to_queue_on_nodes(Elevator, Order) ->
 remote_listener() ->
 	receive
 		{add_order, Elevator, Order} ->
-			queue_module:add_to_queue(Elevator, Order#order.floor, Order#order.type) % TODO Argument Order
+			queue_module:add_to_queue(Elevator, Order) % TODO Argument Order
 
 	end.
 
@@ -76,6 +80,8 @@ driver_manager() ->
 	receive
 		{stop_at_floor} ->
 			driver:set_motor_direction(stop),
+			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
+
 			driver:set_door_open_lamp(on),
 			timer:sleep(3000),
 			driver:set_door_open_lamp(off),
@@ -84,5 +90,6 @@ driver_manager() ->
 
 		{at_end_floor} ->
 			driver:set_motor_direction(stop),
+			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
 			driver_manager()
 	end.
