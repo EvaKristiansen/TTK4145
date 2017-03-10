@@ -24,7 +24,7 @@ typedef enum tag_elev_lamp_type {
 
 void elev_init(void);
 
-int elev_set_motor_direction(elev_motor_direction_t dirn);
+void elev_set_motor_direction(elev_motor_direction_t dirn);
 void elev_set_button_lamp(elev_button_type_t button, int floor, int value);
 void elev_set_floor_indicator(int floor);
 void elev_set_door_open_lamp(int value);

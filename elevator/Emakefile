@@ -1,3 +1,4 @@
-{'driver.erl',[{outdir, "ebin"}]}.
-{'elevator.erl',[{outdir, "ebin"}]}.
-
+%{'driver.erl',[{outdir, "ebin"}]}.
+%{'elevator.erl',[{outdir, "ebin"}]}.
+driver.
+elevator.

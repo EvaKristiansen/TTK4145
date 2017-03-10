@@ -1,7 +1,6 @@
--module (driver).
+-module(driver).
 -export([start/1, stop/0]).
 -export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1]). %Consider if init is necessary
--compile(export_all).
 
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
 
@@ -12,15 +11,14 @@
 
 start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
-	spawn(fun() -> init_port("driver/elev_port") end),
-    %spawn(?MODULE, init_port, ["driver/elev_port"]),
+	spawn(fun() -> init_port("driver/elev_port") end), %DEBUG
     %Wait before initializing:
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
     init(),
     io:fwrite("Passed init ~w ~n ", [self()]), %DEBUG
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
-    spawn(fun() -> sensor_poller(Sensor_monitor_pid) end()). %DEBUG
+    spawn(fun() -> sensor_poller(Sensor_monitor_pid) end). %DEBUG
  
 
 stop() ->
@@ -35,10 +33,9 @@ sensor_poller(Sensor_monitor_pid)->
 sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	New_floor = get_floor_sensor_signal(),
-	case (New_floor /= Last_floor) and (New_floor /= [255]) of %Reached a new floor if it is not last floor or no floor
+	case (New_floor /= Last_floor) and (New_floor /= 255) of %Reached a new floor if it is not last floor or no floor
 		true ->
-			io:fwrite("New floor reached ~w ~n ", New_floor), %DEBUG
-			%Sensor_monitor_pid ! {new_floor_reached, New_floor},
+			%Sensor_monitor_pid ! {new_floor_reached, New_floor}, %DEBUG
 			true;
 		false ->
 			false
@@ -55,12 +52,11 @@ button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
 			Floor = Button#button.floor,
 			ButtonType = Button#button.type,
 			State = Button#button.state,
-			New_state = lists:nth(1, get_button_signal(ButtonType,Floor)),
+			New_state = get_button_signal(ButtonType,Floor),
 
 			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
 				true ->
-					io:fwrite("Button pressed, button type: ~w button floor: ~w ~n ", [ButtonType, Floor]), %DEBUG
-					%Sensor_monitor_pid ! {button_pressed, ButtonType, Floor},
+					%Sensor_monitor_pid ! {button_pressed, ButtonType, Floor}, %DEBUG
 					true;
 				false  ->
 					false
@@ -113,7 +109,7 @@ loop(Port) ->
 call_port(Msg) ->
     driver ! {call, self(), Msg},
     receive
-	{driver, Result} ->
+	{driver, [Result]} ->
 	    Result
     end.
 
