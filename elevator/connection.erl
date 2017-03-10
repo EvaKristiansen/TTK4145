@@ -17,9 +17,8 @@ init()->
 	{ok, ListenSocket} = gen_udp:open(?RECEIVE_PORT,[list,{active,false}]),
 	{ok, SendSocket} = gen_udp:open(?SEND_PORT, [list, {active,true}, {broadcast, true}]),
 	
-	Fir = spawn(fun() -> listen_for_connections(ListenSocket) end),
-	Sec = spawn(fun() -> broadcast_loop(SendSocket) end),
-	[Fir, Sec].
+	spawn(fun() -> listen_for_connections(ListenSocket) end),
+	spawn(fun() -> broadcast_loop(SendSocket) end).
 	
 listen_for_connections(ListenSocket) ->
 	{ok,{_,Sender,NodeName}} = gen_udp:recv(ListenSocket,0),
