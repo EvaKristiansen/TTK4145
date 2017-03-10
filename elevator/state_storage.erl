@@ -65,5 +65,9 @@ storage_loop(States,Last_known_floors,Directions) ->
 				storage_loop(Updated_states,Last_known_floors,Directions);
 				ok;
 			error -> 
+				Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
+				Updated_last_known_floors = dict:append(Key, -1 ,Last_known_floors),
+				Updated_directions = dict:append(Key, 0, Directions)
+			end
 
 	end.
