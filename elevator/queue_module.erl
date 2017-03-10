@@ -39,7 +39,7 @@ update_queue(New_member) ->
 	?QUEUE_PID ! {update, New_member}.
 
 
-queue_storage_loop(Queues) ->
+queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 	receive
    	
 		{add, {Pid, Key, Order}} ->
@@ -73,7 +73,12 @@ queue_storage_loop(Queues) ->
 					Temp_dict = dict:append(In_name, ordsets:new(), Queues),
 					UpdatedQueues = dict:append(Out_name, ordsets:new(), Temp_dict),
 					queue_storage_loop(UpdatedQueues)
-			end   					       
+			end;
+
+		{get_queue, {Pid, Key}} ->
+			{_ok,[SubjectSet|_Meh]} = dict:find(Key, Queues),
+			Pid ! {ok,SubjectSet},
+			queue_storage_loop(Queues)
 	end.
 
 
@@ -158,3 +163,36 @@ remove_from_queue(ElevatorID, Floor) ->
 	?QUEUE_PID ! {remove, {InKey, Order2}},
 	?QUEUE_PID ! {remove, {OutKey, Order3}},
 	ok.
+
+get_first_in_queue(ElevatorID, inner) -> %TODO: MAKE LESS UGLY!
+	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_inner"}},
+	receive
+		{ok,Set} ->
+			io:fwrite("Queue is ~w  ~n",[Set]), %DEBUG
+			ok
+	end,
+	case Set of
+		[First | _Rest]->
+			ok;
+		[] ->
+			First = empty
+	end,
+	io:fwrite("First is ~w  ~n",[First]), %DEBUG
+	First; 
+
+get_first_in_queue(ElevatorID, outer) ->
+	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_outer"}},
+	receive
+		{ok,Set} ->
+			io:fwrite("Queue is ~w  ~n",[Set]), %DEBUG
+			ok
+	end,
+	case Set of
+		[First | _Rest]->
+			ok;
+		[] ->
+			First = empty
+	end,
+	io:fwrite("First is ~w  ~n",[First]), %DEBUG
+	First.
+ 

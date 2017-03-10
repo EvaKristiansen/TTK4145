@@ -18,9 +18,9 @@ start() ->
 	register(?ELEVATOR_MONITOR_PID, spawn(fun() -> elevator_monitor() end)), %Should be init-versions of functions
 	driver:start(?ELEVATOR_MONITOR_PID),
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener() end)),
-	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
+	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)).
 
-	
+
 
 
 %The function that handles button presses should do as little as possible.....
@@ -36,17 +36,17 @@ elevator_monitor() ->
 			case Stop_for_order of
 				true ->
 					%STOP, Remove from order, Send stopped to fsm, open_door
-					?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
+					?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
 					queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
 					?STATE_STORAGE_PID ! {set_state, {node(), door_open}};
 				
 				false ->
-					%Keep going
+					%Keep goinggit 
 					ok
 			end,
 
 			%Just to stop in each end:
-			case ((Floor == 0) or (Floor == 3)) and (not Stop_for_order) of
+			case ((Floor == 0) or (Floor == 3)) and (not Stop_for_order) of %TODO: REMOVE UGLY CASE ADD PATTERN MATCHING
 				true ->
 					?DRIVER_MANAGER_PID  ! {at_end_floor},
 					?STATE_STORAGE_PID ! {set_state, {node(), idle}},
@@ -59,6 +59,7 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{button_pressed, Floor, ButtonType} ->
+			%Check if we are in this floor before doing shit
 			driver:set_button_lamp(ButtonType,Floor,on),
 			Order = #order{floor = Floor, type = ButtonType},
 			Winner = order_distributer:distribute_order(Order),
@@ -70,7 +71,16 @@ elevator_monitor() ->
 			spawn(fun()-> order_poller() end),
 			elevator_monitor();
 
+		{new_destination, stop} ->
+			io:fwrite("Got new destination at direction: ~w ~n",[stop]), %DEBUG
+			Floor = state_storage:get_last_floor(self()),
+			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
+			queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
+			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
+			elevator_monitor();
+
 		{new_destination, Direction} ->
+			io:fwrite("Got new destination at direction: ~w ~n",[Direction]), %DEBUG
 			?DRIVER_MANAGER_PID  ! {go_to_order, Direction},
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
 			elevator_monitor()
@@ -108,20 +118,24 @@ driver_manager() ->
 			driver_manager();
 
 		{go_to_order, Direction} ->
-			driver:set_motor_direction(Direction)
+			driver:set_motor_direction(Direction),
+			driver_manager()
 	end.
 
 order_poller() -> %Checks if my elevator has place it should be, when in state idle
+	io:fwrite("Starting order poller ~n",[]), %DEBUG
 	Next = order_distributer:get_next_order(node()),
-	case next of
+	io:fwrite("Next is ~w ~n",[Next]), %DEBUG
+	case Next of
 		false ->
-			timer:sleep(100), %TODO check poll period 
+			io:fwrite("Order poller got false ~n",[]), %DEBUG
+			timer:sleep(3000), %TODO check poll period 
 			order_poller();
 
-		Order_floor ->
-
+		Order ->
 			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
-			Relative_position = Order_floor - Elevator_floor, %TODO reply
+			io:fwrite("Elevator floor is ~w ~n",[Elevator_floor]), %DEBUG
+			Relative_position = Order#order.floor - Elevator_floor, %TODO reply
 			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
 	end.
 

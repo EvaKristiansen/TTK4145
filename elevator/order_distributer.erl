@@ -4,11 +4,35 @@
 - record(order,{floor,type}).
 
 get_next_order(ElevatorID) ->
-	In_option = queue_module:get_first_in_queue(ElevatorID,"_inner"),
-	Out_option = queue_module:get_first_in_queue(ElevatorID, "_outer"),
-	[In_penalty] = getpenalties([ElevatorID],[],In_option), %Will hopefully be list with one member
-	[Out_penalty] = getpenalties([ElevatorID],[],Out_option),
-	lists:min([In_penalty,Out_penalty]).
+	io:fwrite("Trying to get next order ~n",[]), %DEBUG
+	In_option = queue_module:get_first_in_queue(ElevatorID,inner),
+	Out_option = queue_module:get_first_in_queue(ElevatorID, outer),
+	choose_next_order(ElevatorID,In_option,Out_option).
+
+choose_next_order(ElevatorID,empty,empty) ->
+	false;
+choose_next_order(ElevatorID,Option1,empty) ->
+	Option1;
+
+choose_next_order(ElevatorID,empty,Option2) ->
+	Option2;
+
+choose_next_order(ElevatorID,Option1,Option2) ->			
+	
+	Last_floor = state_storage:get_last_floor(ElevatorID),
+	Direction = state_storage:get_direction(ElevatorID),
+
+	Option1_penalty = distance_penalty(Option1,Last_floor) + turn_penalty(Option1,Last_floor,Direction),
+	Option2_penalty = distance_penalty(Option1,Last_floor) + turn_penalty(Option1,Last_floor,Direction),
+
+	choose_next_order(Option1,Option2,Option1_penalty,Option2_penalty).
+
+choose_next_order(Option1,_Option2,Option1_penalty,Option2_penalty) when Option2_penalty >= Option1_penalty ->
+	Option1;
+choose_next_order(_Option1,Option2,_Option1_penalty,_Option2_penalty) ->
+	Option2.
+
+
 
 
 distribute_order(Order) -> 
