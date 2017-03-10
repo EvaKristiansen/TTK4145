@@ -101,11 +101,10 @@ add_to_queue(ElevatorID, Order) -> % Er en dum funksjon, som bare setter inn bas
 
 	end.
 
-is_order(Floor,Type) ->
-	is_order(Floor,Type,get_member_list()).
+is_order(Order) ->
+	is_order(Order,get_member_list()).
 	
-is_order(Floor, Type, MemberList) ->
-	Order = #order{floor = Floor, type = Type},
+is_order(Order, MemberList) ->
 	case MemberList of
 		[Member | Rest] ->
 			case Order#order.type == inner of 
@@ -118,7 +117,7 @@ is_order(Floor, Type, MemberList) ->
 			?QUEUE_PID ! {is_in_queue, {self(), Key, Order}},
 			receive 
 				{ok, false} ->
-					is_order(Floor,Type, Rest);
+					is_order(Order, Rest);
 				{ok, true} ->
 					true
 				after 50 ->
@@ -167,32 +166,20 @@ remove_from_queue(ElevatorID, Floor) ->
 get_first_in_queue(ElevatorID, inner) -> %TODO: MAKE LESS UGLY!
 	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_inner"}},
 	receive
-		{ok,Set} ->
-			io:fwrite("Queue is ~w  ~n",[Set]), %DEBUG
+		{ok,[]} ->
+			First = empty;
+		{ok,[First | _Rest]} ->
 			ok
 	end,
-	case Set of
-		[First | _Rest]->
-			ok;
-		[] ->
-			First = empty
-	end,
-	io:fwrite("First is ~w  ~n",[First]), %DEBUG
 	First; 
 
 get_first_in_queue(ElevatorID, outer) ->
 	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_outer"}},
 	receive
-		{ok,Set} ->
-			io:fwrite("Queue is ~w  ~n",[Set]), %DEBUG
+		{ok,[]} ->
+			First = empty;
+		{ok,[First | _Rest]} ->
 			ok
 	end,
-	case Set of
-		[First | _Rest]->
-			ok;
-		[] ->
-			First = empty
-	end,
-	io:fwrite("First is ~w  ~n",[First]), %DEBUG
 	First.
  
