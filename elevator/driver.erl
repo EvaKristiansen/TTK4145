@@ -11,7 +11,7 @@
 
 start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
-	spawn(fun() -> init_port("driver/elev_port") end), %DEBUG
+	spawn(fun() -> init_port("../driver/elev_port") end), %DEBUG
     %Wait before initializing:
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
