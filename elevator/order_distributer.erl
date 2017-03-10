@@ -4,7 +4,6 @@
 - record(order,{floor,type}).
 
 get_next_order(ElevatorID) ->
-	io:fwrite("Trying to get next order ~n",[]), %DEBUG
 	In_option = queue_module:get_first_in_queue(ElevatorID,inner),
 	Out_option = queue_module:get_first_in_queue(ElevatorID, outer),
 	choose_next_order(ElevatorID,In_option,Out_option).
