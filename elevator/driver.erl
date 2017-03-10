@@ -56,7 +56,7 @@ button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
 
 			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
 				true ->
-					Sensor_monitor_pid ! {button_pressed, ButtonType, Floor}, %DEBUG
+					Sensor_monitor_pid ! {button_pressed, Floor, ButtonType}, %DEBUG
 					true;
 				false  ->
 					false

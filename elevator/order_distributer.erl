@@ -3,6 +3,13 @@
 - compile(export_all).
 - record(order,{floor,type}).
 
+distribute_order(Order) -> 
+	Memberlist = [node()|nodes()],
+	Penalties = getpenalties(Memberlist,[],Order),	
+	Winner = choose_winner(Memberlist, Penalties, {10000, dummy@member}),
+	queue_module:add_to_queue(Winner),
+	Winner.
+
 choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
 	case Memberlist of 
 		[Member_head | Member_rest] -> 
@@ -63,10 +70,7 @@ get_penalty(_dontcare, true, true) -> 0;
 get_penalty(_dontcare, true, false) -> 2;
 get_penalty(_dontcare, false, _) -> 20.
 
-distribute_order(Order) -> 
-	Memberlist = [node()|nodes()],
-	Penalties = getpenalties(Memberlist,[],Order),	
-	choose_winner(Memberlist, Penalties, {10000, dummy@member}).	
+	
 
 order_type_to_int(Type) ->
 	case Type of

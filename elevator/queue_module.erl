@@ -1,6 +1,6 @@
 - module (queue_module).
 - compile(export_all).
-- record(order,{floor,direction}).
+- record(order,{floor,type}).
 
 - define(IN_KEY, 13).
 - define(OUT_KEY, 42).
@@ -35,6 +35,8 @@ init_storage(Queues,MemberList)->
 			Queues
 	end.
 
+update_queue(New_member) ->
+	?QUEUE_PID ! {update, New_member}.
 
 
 queue_storage_loop(Queues) ->
@@ -75,9 +77,9 @@ queue_storage_loop(Queues) ->
 	end.
 
 
-add_to_queue(ElevatorID, Floor, Direction) -> % Er en dum funksjon, som bare setter inn basert på input, order_distributer bestemmer hvor
-	Order = #order{floor = Floor, direction = Direction},
-	case Order#order.direction == 0 of 
+add_to_queue(ElevatorID, Floor, Type) -> % Er en dum funksjon, som bare setter inn basert på input, order_distributer bestemmer hvor
+	Order = #order{floor = Floor, type = Type},
+	case Order#order.type == inner of 
 		true ->
 			Key = atom_to_list(ElevatorID) ++ "_inner";
 		false ->
@@ -95,14 +97,14 @@ add_to_queue(ElevatorID, Floor, Direction) -> % Er en dum funksjon, som bare set
 
 	end.
 
-is_order(Floor,Direction) ->
-	is_order(Floor,Direction,get_member_list()).
+is_order(Floor,Type) ->
+	is_order(Floor,Type,get_member_list()).
 	
-is_order(Floor, Direction, MemberList) ->
-	Order = #order{floor = Floor, direction = Direction},
+is_order(Floor, Type, MemberList) ->
+	Order = #order{floor = Floor, type = Type},
 	case MemberList of
 		[Member | Rest] ->
-			case Order#order.direction == 0 of 
+			case Order#order.type == inner of 
 				true ->
 					Key = atom_to_list(Member) ++ "_inner";
 				false ->
@@ -112,7 +114,7 @@ is_order(Floor, Direction, MemberList) ->
 			?QUEUE_PID ! {is_in_queue, {self(), Key, Order}},
 			receive 
 				{ok, false} ->
-					is_order(Floor,Direction, Rest);
+					is_order(Floor,Type, Rest);
 				{ok, true} ->
 					true
 				after 50 ->
@@ -122,15 +124,37 @@ is_order(Floor, Direction, MemberList) ->
 		[] ->
 			false
 	end.
-
-
-remove_from_queue(ElevatorID, Floor) ->
-	% Kjør en loop som itererer over retningene (-1, 0, 1)
+	
+is_floor_in_queue(ElevatorID, Floor) ->
 	InKey = atom_to_list(ElevatorID) ++ "_inner",
 	OutKey = atom_to_list(ElevatorID) ++ "_outer",
-	Order1  = #order{floor = Floor, direction = -1},
-	Order2  = #order{floor = Floor, direction = 0},
-	Order3  = #order{floor = Floor, direction = 1},
+	Order1  = #order{floor = Floor, type = down},
+	Order2  = #order{floor = Floor, type = inner},
+	Order3  = #order{floor = Floor, type = up},
+
+	?QUEUE_PID ! {is_in_queue, {self(), OutKey, Order1}},
+		receive
+			{ok, Value1} ->
+				true
+		end,
+	?QUEUE_PID ! {is_in_queue, {self(), InKey, Order2}},
+		receive
+			{ok, Value2} ->
+				true
+		end,
+	?QUEUE_PID ! {is_in_queue, {self(), OutKey, Order3}},
+	receive
+			{ok, Value3} ->
+				true
+		end,
+	Value1 or Value2 or Value3.
+
+remove_from_queue(ElevatorID, Floor) ->
+	InKey = atom_to_list(ElevatorID) ++ "_inner",
+	OutKey = atom_to_list(ElevatorID) ++ "_outer",
+	Order1  = #order{floor = Floor, type = down},
+	Order2  = #order{floor = Floor, type = inner},
+	Order3  = #order{floor = Floor, type = up},
 	?QUEUE_PID ! {remove, {OutKey, Order1}},
 	?QUEUE_PID ! {remove, {InKey, Order2}},
 	?QUEUE_PID ! {remove, {OutKey, Order3}},

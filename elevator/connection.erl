@@ -31,7 +31,6 @@ listen_for_connections(ListenSocket) ->
 			establishconnection(Node),
 			listen_for_connections(ListenSocket);
 
-
 		_ ->
 			listen_for_connections(ListenSocket)
 	end.
