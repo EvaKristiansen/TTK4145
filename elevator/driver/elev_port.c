@@ -18,7 +18,7 @@ int main() {
         break;
 
       case(MOTOR_DIRECTION_COMMAND):
-        res = elev_set_motor_direction(buf[1]);
+        elev_set_motor_direction(buf[1]);
         break;
 
       case(BUTTON_LAMP_COMMAND):
@@ -40,8 +40,16 @@ int main() {
       case(FLOOR_SENSOR_SIGNAL_COMMAND):
         res = elev_get_floor_sensor_signal();
         break;
+
+      case(RESET_ORDER_LIGHTS_COMMAND):
+        elev_reset_order_lights(buf[1]);
+        break;
+
+      case(TURN_ALL_THE_LIGHTS_OFF_COMMAND):
+        elev_turn_all_the_lights_off();
+        break;
     }
-    buf[0] = res;
+    buf[0] = res; // DEBUG: Should be equal res
     write_cmd(buf, 1);
   }
   return 0;

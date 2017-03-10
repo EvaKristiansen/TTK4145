@@ -48,11 +48,11 @@ void elev_set_motor_direction(elev_motor_direction_t dirn) {
     if (dirn == DIRN_STOP){
         io_write_analog(MOTOR, 0);
 
-    } else if (dirn == 1) {
+    } else if (dirn == DIRN_UP) {
         io_clear_bit(MOTORDIR);
         io_write_analog(MOTOR, MOTOR_SPEED);
 
-    } else if (dirn == 2) {
+    } else if (dirn == DIRN_DOWN) {
         io_set_bit(MOTORDIR);
         io_write_analog(MOTOR, MOTOR_SPEED);
     }
@@ -147,6 +147,16 @@ int elev_get_obstruction_signal(void) {
 }
 
 
+void elev_reset_order_lights(int floor){
+    for (elev_button_type_t i = BUTTON_CALL_UP; i <= BUTTON_COMMAND; i++){
+        if (floor == 0 && i == BUTTON_CALL_DOWN){}
+        else if (floor == 3 && i == BUTTON_CALL_UP){}
+        else { elev_set_button_lamp(i, floor, 0); }
+    }
+}
 
-
-
+void elev_turn_all_the_lights_off(){
+    for (int i = 0; i <= 3; i++){
+        elev_reset_order_lights(i);
+    }
+}

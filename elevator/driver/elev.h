@@ -35,5 +35,7 @@ int elev_get_floor_sensor_signal(void);
 int elev_get_stop_signal(void);
 int elev_get_obstruction_signal(void);
 
+//Turns off the order lights to the respective floor
+void elev_reset_order_lights(int floor);
 
-
+void elev_turn_all_the_lights_off();
