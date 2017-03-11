@@ -3,7 +3,7 @@
 - compile(export_all).
 - record(order,{floor,type}).
 
-get_next_order(ElevatorID) ->
+get_next_order(ElevatorID) -> % TODO, mulig å forbedre valget? Er det nødvendig i det hele tatt?
 	In_option = queue_module:get_first_in_queue(ElevatorID,inner),
 	Out_option = queue_module:get_first_in_queue(ElevatorID, outer),
 	choose_next_order(ElevatorID,In_option,Out_option).
@@ -96,7 +96,7 @@ turn_penalty(Order, Elevator_floor, Elevator_direction) ->
 	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction), 		% True if elevator and signal same direction
 	get_penalty(Elevator_direction, Moving_towards_pling, Equal_direction).
 
-get_penalty(0, _, _) -> 0; %Define as macros or change name? Is technically not a record, I believe
+get_penalty(0, _, _) -> 0;
 get_penalty(_dontcare, true, true) -> 0;
 get_penalty(_dontcare, true, false) -> 2;
 get_penalty(_dontcare, false, _) -> 20.
@@ -110,3 +110,4 @@ order_type_to_int(up) -> 1.
 direction_to_int(down) -> -1;
 direction_to_int(stop) -> 0;
 direction_to_int(up) -> 1.
+

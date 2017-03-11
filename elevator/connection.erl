@@ -29,6 +29,7 @@ listen_for_connections(ListenSocket) ->
 			%Debug
 			Node = list_to_atom(NodeName),
 			establishconnection(Node),
+%			queue_module:update_queue(Node), % DEBUG Vi må oppdatere køen, bruke funksjonen update_queue/1 på noe tidspunkt
 			listen_for_connections(ListenSocket);
 
 		_ ->
