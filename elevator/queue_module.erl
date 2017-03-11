@@ -2,7 +2,7 @@
 - compile(export_all).
 - record(order,{floor,type}).
 
-- define(IN_KEY, 13).
+- define(IN_KEY, 13). %TODO: REMOVE!
 - define(OUT_KEY, 42).
 - define(QUEUE_PID, queue).
 - define(PROCESS_GROUP_NAME, nodes). %reconsider
