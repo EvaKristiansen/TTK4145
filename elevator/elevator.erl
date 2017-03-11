@@ -26,7 +26,7 @@ start() ->
 	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
 	spawn(fun() -> button_light_manager(driver:create_buttons([],0)) end),
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
-	send_remote_state_update(idle),  % TODO: Send state til andre noder
+	send_remote_state_update(idle), 
 	order_poller().
 
 
@@ -37,33 +37,33 @@ elevator_monitor() ->
 
 			driver:set_floor_indicator(Floor),
 			?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
-			send_remote_floor_update(Floor), % TODO: Send state til andre noder
+			send_remote_floor_update(Floor), 
 			Stop_for_order = queue_module:is_floor_in_queue(node(),Floor),
 
-			case Stop_for_order of
-				true ->
-					%STOP, Remove from order, Send stopped to fsm, open_door
-					?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
-					queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
-					?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
-					send_remote_state_update(door_open); % TODO: Send state til andre noder
-				false ->
-					%Keep goinggit 
-					ok
-			end,
-
-			%Just to stop in each end:
-			case ((Floor == 0) or (Floor == 3)) and (not Stop_for_order) of %TODO: REMOVE UGLY CASE ADD PATTERN MATCHING
-				true ->
-					?DRIVER_MANAGER_PID  ! {at_end_floor},
-					?STATE_STORAGE_PID ! {set_state, {node(), idle}},
-					send_remote_state_update(idle), % TODO: Send state til andre noder
-					spawn(fun()-> order_poller() end);
-				false ->
-				%Keep going
-					ok
-			end,
-
+%			case Stop_for_order of
+%				true ->
+%					%STOP, Remove from order, Send stopped to fsm, open_door
+%					?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
+%					queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
+%					?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
+%					send_remote_state_update(door_open); 
+%				false ->
+%					%Keep goinggit 
+%					ok
+%			end,
+%
+%			%Just to stop in each end:
+%			case ((Floor == 0) or (Floor == 3)) and (not Stop_for_order) of %TODO: REMOVE UGLY CASE ADD PATTERN MATCHING
+%				true ->
+%					?DRIVER_MANAGER_PID  ! {at_end_floor},
+%					?STATE_STORAGE_PID ! {set_state, {node(), idle}},
+%					send_remote_state_update(idle), 
+%					spawn(fun()-> order_poller() end);
+%				false ->
+%				%Keep going
+%					ok
+%			end,
+			respone_to_new_floor(Stop_for_order, Floor),% argument (Stop_for_order, Floor)
 			elevator_monitor();
 
 		{button_pressed, Floor, ButtonType} ->
@@ -74,7 +74,7 @@ elevator_monitor() ->
 
 		{door_closed} ->
 			?STATE_STORAGE_PID ! {set_state, {node(), idle}},
-			send_remote_state_update(idle), % TODO: Send state til andre noder
+			send_remote_state_update(idle),
 			spawn(fun()-> order_poller() end),
 			elevator_monitor();
 
@@ -84,14 +84,14 @@ elevator_monitor() ->
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
 			queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
 			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
-			send_remote_state_update(door_open), % TODO: Send state til andre noder
+			send_remote_state_update(door_open), 
 			elevator_monitor();
 
 		{new_destination, Direction} ->
 			io:fwrite("Got new destination at direction: ~w ~n",[Direction]), %DEBUG
 			?DRIVER_MANAGER_PID  ! {go_to_order, Direction},
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
-			send_remote_state_update(moving), % TODO: Send state til andre noder
+			send_remote_state_update(moving), 
 			elevator_monitor();
 		{elevator_dropout, ElevatorID} ->
 			lists:foreach(fun(Order) -> 
@@ -129,7 +129,7 @@ driver_manager() ->
 		{stop_at_floor,Floor} ->
 			driver:set_motor_direction(stop),
 			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
-			send_remote_direction_update(stop), % TODO: update states
+			send_remote_direction_update(stop), 
 
 			driver:reset_button_lights(Floor),
 			driver:set_door_open_lamp(on),
@@ -165,6 +165,23 @@ order_poller() -> %Checks if my elevator has place it should be, when in state i
 			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
 			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
 	end.
+
+respone_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
+	%STOP, Remove from order, Send stopped to fsm, open_door
+	?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
+	queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
+	?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
+	send_remote_state_update(door_open);
+
+respone_to_new_floor(false, 0) -> 
+	respone_to_new_floor(false, 3);
+
+respone_to_new_floor(false, 3) -> 
+	?DRIVER_MANAGER_PID  ! {at_end_floor},
+	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
+	send_remote_state_update(idle), 
+	spawn(fun()-> order_poller() end).
+
 
 button_light_manager(Buttons) ->
 	lists:foreach(fun(Button) -> set_button(Button) end,Buttons),
