@@ -17,10 +17,26 @@ start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
     %Initialize elevator, is void in c, so no return:
     init(),
     turn_all_the_lights_off(),
+    move_to_floor_under(self()),
+    	receive 
+    		{ok, Floor} ->
+    			ok
+    	end,
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
-    spawn(fun() -> sensor_poller(Sensor_monitor_pid) end). %DEBUG
+    Buttons = create_buttons([],0),
+    spawn(fun() -> sensor_poller(Sensor_monitor_pid, Floor, Buttons) end), %DEBUG
+    Floor.
  
-
+move_to_floor_under(Pid) ->
+	set_motor_direction(down),
+	case Floor = get_floor_sensor_signal() of 
+		255 ->
+			move_to_floor_under(Pid);
+		_ -> 
+			Pid ! {ok, Floor}
+	end,
+	set_motor_direction(stop).
+	
 stop() ->
     driver ! stop.
 
@@ -35,6 +51,7 @@ sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	New_floor = get_floor_sensor_signal(),
 	case (New_floor /= Last_floor) and (New_floor /= 255) of %Reached a new floor if it is not last floor or no floor
 		true ->
+			io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
 			Sensor_monitor_pid ! {new_floor_reached, New_floor}, %DEBUG
 			true;
 		false ->

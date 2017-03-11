@@ -45,7 +45,7 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 		{add, {Pid, Key, Order}} ->
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:add_element(Order, SubjectSet),
-			io:fwrite("~w ~n ", [New_set]),
+			io:fwrite("Adding: ~w ~n ", [New_set]),
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
 			Pid ! {ok,Updated_queues},
 			queue_storage_loop(Updated_queues);
@@ -53,7 +53,7 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 		{remove, {Key, Order}} -> 
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:del_element(Order,SubjectSet),
-			io:fwrite("~w ~n ", [New_set]),
+			io:fwrite("Removing: ~w ~n ", [New_set]),
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
 			queue_storage_loop(Updated_queues);
 
@@ -124,6 +124,7 @@ is_order(Order, MemberList) ->
 					io:fwrite("isOrder recieved nothing ~n ", []),
 					error
 			end;
+
 		[] ->
 			false
 	end.
