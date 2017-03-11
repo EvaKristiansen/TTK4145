@@ -8,12 +8,12 @@ get_next_order(ElevatorID) -> % TODO, mulig å forbedre valget? Er det nødvendi
 	Out_option = queue_module:get_first_in_queue(ElevatorID, outer),
 	choose_next_order(ElevatorID,In_option,Out_option).
 
-choose_next_order(ElevatorID,empty,empty) ->
+choose_next_order(_ElevatorID,empty,empty) ->
 	false;
-choose_next_order(ElevatorID,Option1,empty) ->
+choose_next_order(_ElevatorID,Option1,empty) ->
 	Option1;
 
-choose_next_order(ElevatorID,empty,Option2) ->
+choose_next_order(_ElevatorID,empty,Option2) ->
 	Option2;
 
 choose_next_order(ElevatorID,Option1,Option2) ->			

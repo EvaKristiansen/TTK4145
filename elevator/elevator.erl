@@ -25,7 +25,7 @@ start() ->
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener() end)),
 	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
 	spawn(fun() -> button_light_manager(driver:create_buttons([],0)) end),
-	spawn(fun() -> storage_maintainer() end), %EVA
+	spawn(fun() -> storage_maintainer({0,0,0}) end), %EVA
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
 	order_poller(). %TODO shouldn't it be spawned?
@@ -169,6 +169,7 @@ order_poller() -> %Checks if my elevator has place it should be, when in state i
 			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
 			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
 	end.
+
 %EVA: RENAME TO RESPOND
 respone_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
 	%STOP, Remove from order, Send stopped to fsm, open_door
@@ -203,25 +204,24 @@ set_button(Button)-> %Not happy with name, but tired
 			driver:set_button_lamp(Button#button.type,Button#button.floor,off)
 	end.
 
-storage_maintainer() ->
-	storage_maintainer({0,0,0});
-
 storage_maintainer({0,0,0}) ->
 	global_group:monitor_nodes(true),
-	watcher({0,0,1});
+	storage_maintainer({0,0,1});
 
 storage_maintainer(Timestamp) ->
 	receive 
 		{nodedown, _Node} ->
-			watcher(Timestamp);
+			storage_maintainer(Timestamp);
 		{nodeup, Node} ->
-			queue_module:update_queue(Node);
-			state_storage:update_storage(Node);
-	
+			queue_module:update_queue(Node),
+			state_storage:update_storage(Node)
+
 	after 30000 ->
 		%EVA: DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
+		ok
 	end,
-	watcher({0,0,1}).
+
+	?MODULE:storage_maintainer({0,0,1}).
 
 
 %%%%%%%%%%%%%%% HELPER FUNCTIONS; MAY BE REMOVABLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -232,21 +232,22 @@ direction(Relative_position) when Relative_position < 0 -> down.
 button_to_order(Button) ->
 	#order{floor= Button#button.floor, type = Button#button.type}.
 
-%%%%%%%%%%%%%% MOVE TO QUEUE_MODULE? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-add_order_to_queues(0, _Type, Winner) ->
-	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
-	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up}),
-	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
-	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up}),
-add_order_to_queues(1, Type, Winner) ->
-	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
-	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
-add_order_to_queues(2, Type, Winner) ->
-	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
-	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+%TODO: THESE TO NOT COMPILE, WHERE ARE THEY USED?
+%add_order_to_queues(0, _Type, Winner) ->
+%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
+%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up}),
+%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
+%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up});
 
-add_order_to_queues(3, _Type, Winner) ->
-	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
-	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}),
-	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
-	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}),
+%add_order_to_queues(1, Type, Winner) ->
+%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type});
+%add_order_to_queues(2, Type, Winner) ->
+%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type});
+
+%add_order_to_queues(3, _Type, Winner) ->
+%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
+%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}),
+%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
+%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}).

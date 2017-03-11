@@ -112,7 +112,7 @@ get_direction(ElevatorID) ->
 	end.
 
 update_storage(ElevatorID) ->
-	?STATE_STORAGE_PID ! {update, Member}.
+	?STATE_STORAGE_PID ! {update, ElevatorID}.
 
 update_state(ElevatorID, New_state) ->
 	?STATE_STORAGE_PID ! {set_state, {ElevatorID, New_state}}.
