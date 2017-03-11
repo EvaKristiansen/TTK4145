@@ -28,7 +28,7 @@ start() ->
 	spawn(fun() -> storage_maintainer({0,0,0}) end), %EVA
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
-	order_poller(). %TODO shouldn't it be spawned?
+	spawn(fun() -> order_poller() end). %TODO shouldn't it be spawned?
 
 
 %The function that handles button presses should do as little as possible.....
@@ -69,6 +69,7 @@ elevator_monitor() ->
 
 		{button_pressed, Floor, ButtonType} ->
 			Order = #order{floor = Floor, type = ButtonType},
+			io:fwrite("Button pressed, order created::: ~w ~n ", [Order]),
 			Winner = order_distributer:distribute_order(Order),
 			%add_order_to_queues(Floor, ButtonType, Winner) % TODO forslag for å ordne køprioritering
 			add_to_queue_on_nodes(Winner,Order),
@@ -101,8 +102,8 @@ elevator_monitor() ->
 			lists:foreach(fun(Order) -> 
 				order_distributer:distribute_order(Order) % Funksjonen returnerer Winner, men vi distribuerer den ikke
 			end,
-			queue_module:get_outer_queue(ElevatorID))
-	end.
+			ordsets:to_list(queue_module:get_outer_queue(ElevatorID)))
+	end. 
 
 add_to_queue_on_nodes(Elevator, Order) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {add_order, Elevator, Order} end, nodes()).
@@ -157,7 +158,9 @@ driver_manager() ->
 	end.
 
 order_poller() -> %Checks if my elevator has place it should be, when in state idle
-	Next = order_distributer:get_next_order(node()),
+	order_distributer:set_next_order_really_smart(), % DEBUG TODO get_next_order(node())
+	Next = queue_module:get_next(),
+	io:fwrite("Checking for next order, we got ::: ~w ~n",[Next]), %DEBUG
 	case Next of
 		false ->
 			timer:sleep(3000), %TODO check poll period 
@@ -165,6 +168,8 @@ order_poller() -> %Checks if my elevator has place it should be, when in state i
 
 		Order ->
 			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
+			io:fwrite("Bad order::: ~w ~n",[Order]), %DEBUG
+			io:fwrite("Bad order_call::::::: ~w ~n",[Order#order.floor]), %DEBUG
 			Relative_position = Order#order.floor - Elevator_floor,
 			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
 			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}

@@ -16,7 +16,7 @@ init()->
 	Memberlist = get_member_list(),
 	io:fwrite("~w ~n ", [Memberlist]),
 	Queues = init_storage(dict:new(), Memberlist),
-	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues])).
+	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues, 2])). % Dummy Variable
 
 get_member_list() ->
 	[node()] ++ nodes().	
@@ -39,7 +39,7 @@ update_queue(New_member) ->
 	?QUEUE_PID ! {update, New_member}.
 
 
-queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
+queue_storage_loop(Queues, Next_floor) -> %TODO: WHAT IS MEH!?
 	receive
    	
 		{add, {Pid, Key, Order}} ->
@@ -48,19 +48,19 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 			io:fwrite("Adding: ~w ~n ", [New_set]),
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
 			Pid ! {ok,Updated_queues},
-			queue_storage_loop(Updated_queues);
+			queue_storage_loop(Updated_queues, Next_floor);
 
 		{remove, {Key, Order}} -> 
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:del_element(Order,SubjectSet),
 			io:fwrite("Removing: ~w ~n ", [New_set]),
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
-			queue_storage_loop(Updated_queues);
+			queue_storage_loop(Updated_queues, Next_floor);
 
 		{is_in_queue, {Pid, Key, Order}} ->
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			Pid ! {ok, ordsets:is_element(Order, SubjectSet)},
-			queue_storage_loop(Queues);
+			queue_storage_loop(Queues, Next_floor);
 
 		{update, New_member} ->
 			case dict:find(atom_to_list(New_member)++"_inner", Queues) of
@@ -72,13 +72,27 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 
 					Temp_dict = dict:append(In_name, ordsets:new(), Queues),
 					UpdatedQueues = dict:append(Out_name, ordsets:new(), Temp_dict),
-					queue_storage_loop(UpdatedQueues)
+					queue_storage_loop(UpdatedQueues, Next_floor)
 			end;
 
 		{get_queue, {Pid, Key}} ->
 			{_ok,[SubjectSet|_Meh]} = dict:find(Key, Queues),
 			Pid ! {ok,SubjectSet},
-			queue_storage_loop(Queues)
+			queue_storage_loop(Queues, Next_floor);
+		{update_next, New_next} ->
+			queue_storage_loop(Queues, New_next);
+		{get_next, Pid} ->
+			Pid ! {ok, Next_floor},
+			queue_storage_loop(Queues, Next_floor)
+	end.
+update_next(Next) ->
+	?QUEUE_PID ! {update_next, Next}.
+
+get_next() ->
+	?QUEUE_PID ! {get_next, self()},
+	receive
+		{ok, Next_floor} ->
+			Next_floor
 	end.
 
 
@@ -184,14 +198,20 @@ get_first_in_queue(ElevatorID, outer) ->
 	end,
 	First.
 
- get_queue_set(ElevatorID, outer) ->
+get_queue_set(ElevatorID, outer) ->
 	?QUEUE_PID ! {get_queue, {self(), atom_to_list(ElevatorID) ++ "_outer"}},
 	receive 
 		{ok, Outer_set} ->
 			ok
 	end,
+	Outer_set;
+get_queue_set(ElevatorID, inner) ->
+	?QUEUE_PID ! {get_queue, {self(), atom_to_list(ElevatorID) ++ "_inner"}},
+	receive 
+		{ok, Outer_set} ->
+			ok
+	end,
 	Outer_set.
-
 
  get_outer_queue(ElevatorID) ->
 	?QUEUE_PID ! {get_queue, {self(), atom_to_list(ElevatorID) ++ "_outer"}},
