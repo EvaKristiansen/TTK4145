@@ -69,8 +69,11 @@ elevator_monitor() ->
 		{button_pressed, Floor, ButtonType} ->
 			Order = #order{floor = Floor, type = ButtonType},
 			Winner = order_distributer:distribute_order(Order),
+			%add_order_to_queues(Floor, ButtonType, Winner) % TODO forslag for å ordne køprioritering
 			add_to_queue_on_nodes(Winner,Order),
 			elevator_monitor();
+
+			
 
 		{door_closed} ->
 			?STATE_STORAGE_PID ! {set_state, {node(), idle}},
@@ -180,7 +183,9 @@ respone_to_new_floor(false, 3) ->
 	?DRIVER_MANAGER_PID  ! {at_end_floor},
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
-	spawn(fun()-> order_poller() end).
+	spawn(fun()-> order_poller() end);
+respone_to_new_floor(false, _) ->
+	ok.
 
 
 button_light_manager(Buttons) ->
@@ -204,3 +209,22 @@ direction(Relative_position) when Relative_position < 0 -> down.
 
 button_to_order(Button) ->
 	#order{floor= Button#button.floor, type = Button#button.type}.
+
+
+add_order_to_queues(0, _Type, Winner) ->
+	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
+	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up}),
+	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
+	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up}),
+add_order_to_queues(1, Type, Winner) ->
+	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+add_order_to_queues(2, Type, Winner) ->
+	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
+
+add_order_to_queues(3, _Type, Winner) ->
+	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
+	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}),
+	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
+	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}),
