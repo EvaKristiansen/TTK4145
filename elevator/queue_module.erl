@@ -173,7 +173,6 @@ get_first_in_queue(ElevatorID, inner) -> %TODO: MAKE LESS UGLY!
 			ok
 	end,
 	First; 
-
 get_first_in_queue(ElevatorID, outer) ->
 	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_outer"}},
 	receive
@@ -183,4 +182,11 @@ get_first_in_queue(ElevatorID, outer) ->
 			ok
 	end,
 	First.
- 
+
+ get_outer_queue(ElevatorID) ->
+	?QUEUE_PID ! {get_queue, {self(), atom_to_list(ElevatorID) ++ "_outer"}},
+	receive 
+		{ok, GivenSet} ->
+			ok
+	end,
+	GivenSet.
