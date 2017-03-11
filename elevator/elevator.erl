@@ -14,14 +14,20 @@ start() ->
 	timer:sleep(60),
 
 	queue_module:init(),
-	state_storage:init(),
-
 	register(?ELEVATOR_MONITOR_PID, spawn(fun() -> elevator_monitor() end)), %Should be init-versions of functions
-	driver:start(?ELEVATOR_MONITOR_PID),
+	
+	Floor = driver:start(?ELEVATOR_MONITOR_PID),
+	io:fwrite("Starting ... in floor: ~w ~n",[Floor]), %DEBUG
+	state_storage:init(Floor),
+
+	
+
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener() end)),
 	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
-	spawn(fun() -> button_light_manager() end).
-
+	spawn(fun() -> button_light_manager(driver:create_buttons([],0)) end),
+	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
+	send_remote_state_update(idle),  % TODO: Send state til andre noder
+	order_poller().
 
 
 %The function that handles button presses should do as little as possible.....
@@ -31,7 +37,7 @@ elevator_monitor() ->
 
 			driver:set_floor_indicator(Floor),
 			?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
-
+			send_remote_floor_update(Floor), % TODO: Send state til andre noder
 			Stop_for_order = queue_module:is_floor_in_queue(node(),Floor),
 
 			case Stop_for_order of
@@ -39,8 +45,8 @@ elevator_monitor() ->
 					%STOP, Remove from order, Send stopped to fsm, open_door
 					?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
 					queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
-					?STATE_STORAGE_PID ! {set_state, {node(), door_open}};
-				
+					?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
+					send_remote_state_update(door_open); % TODO: Send state til andre noder
 				false ->
 					%Keep goinggit 
 					ok
@@ -51,6 +57,7 @@ elevator_monitor() ->
 				true ->
 					?DRIVER_MANAGER_PID  ! {at_end_floor},
 					?STATE_STORAGE_PID ! {set_state, {node(), idle}},
+					send_remote_state_update(idle), % TODO: Send state til andre noder
 					spawn(fun()-> order_poller() end);
 				false ->
 				%Keep going
@@ -67,6 +74,7 @@ elevator_monitor() ->
 
 		{door_closed} ->
 			?STATE_STORAGE_PID ! {set_state, {node(), idle}},
+			send_remote_state_update(idle), % TODO: Send state til andre noder
 			spawn(fun()-> order_poller() end),
 			elevator_monitor();
 
@@ -76,36 +84,52 @@ elevator_monitor() ->
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
 			queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
 			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
+			send_remote_state_update(door_open), % TODO: Send state til andre noder
 			elevator_monitor();
 
 		{new_destination, Direction} ->
 			io:fwrite("Got new destination at direction: ~w ~n",[Direction]), %DEBUG
 			?DRIVER_MANAGER_PID  ! {go_to_order, Direction},
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
+			send_remote_state_update(moving), % TODO: Send state til andre noder
 			elevator_monitor()
 	end.
 
 add_to_queue_on_nodes(Elevator, Order) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {add_order, Elevator, Order} end, nodes()).
+send_remote_state_update(State) ->
+	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_state, node(), State} end, nodes()).
+send_remote_direction_update(Direction) ->
+	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_direction, node(), Direction} end, nodes()).
+send_remote_floor_update(Floor) ->
+	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_floor, node(), Floor} end, nodes()).
 
-remote_listener() ->
+remote_listener() -> % TODO
 	receive
 		{add_order, Elevator, Order} ->
 			queue_module:add_to_queue(Elevator, Order);
 
-		{update_states, Elevator, State, Direction, Last_floor} ->
-			ok %TODO
+		{update_state, Elevator, State} ->
+			state_storage:update_state(Elevator, State);
 
+		{update_floor, Elevator, Floor} ->
+			state_storage:update_floor(Elevator, Floor);
+
+		{update_direction, Elevator, Direction} ->
+			state_storage:update_direction(Elevator, Direction)
 	end.
 
 driver_manager() ->
 	receive
 		{stop_at_floor,Floor} ->
 			driver:set_motor_direction(stop),
-			driver:reset_button_lights(Floor),
+			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
+			send_remote_direction_update(stop), % TODO: update states
 
+			driver:reset_button_lights(Floor),
 			driver:set_door_open_lamp(on),
 			timer:sleep(3000),
+
 			driver:set_door_open_lamp(off),
 			?ELEVATOR_MONITOR_PID ! {door_closed},
 			driver_manager();
@@ -113,10 +137,13 @@ driver_manager() ->
 		{at_end_floor} ->
 			driver:set_motor_direction(stop),
 			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
+			send_remote_direction_update(stop),
 			driver_manager();
 
 		{go_to_order, Direction} ->
 			driver:set_motor_direction(Direction),
+			?STATE_STORAGE_PID ! {set_direction, {node(), Direction}},
+			send_remote_direction_update(Direction),
 			driver_manager()
 	end.
 
@@ -130,14 +157,14 @@ order_poller() -> %Checks if my elevator has place it should be, when in state i
 		Order ->
 			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
 			Relative_position = Order#order.floor - Elevator_floor,
+			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
 			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
 	end.
 
-button_light_manager() ->
-	Buttons = driver:create_buttons([],0),
+button_light_manager(Buttons) ->
 	lists:foreach(fun(Button) -> set_button(Button) end,Buttons),
 	timer:sleep(50),
-	button_light_manager().
+	button_light_manager(Buttons).
 
 set_button(Button)-> %Not happy with name, but tired
 	Toset = queue_module:is_order(button_to_order(Button)),

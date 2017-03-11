@@ -3,12 +3,12 @@
 - compile(export_all). % Turns out, loops have to be exported to be registered like we do... this may not be very neat
 - define(STATE_STORAGE_PID, ss). %Maybe we can send to this process on other computers when it is registered like this, at least, the simple add functions used to just send are not needed!
 
-init()->
+init(Floor)-> % Floor? DEBUG
 	Memberlist = get_member_list(),
-	io:fwrite("~w ~n ", [Memberlist]),
+	io:fwrite("Memberlist: ~w ~n ", [Memberlist]),
 	States = init_storage(dict:new(), Memberlist, init),
-	Last_known_floors = init_storage(dict:new(), Memberlist, -1), 
-	Directions = init_storage(dict:new(), Memberlist, 0),
+	Last_known_floors = init_storage(dict:new(), Memberlist, Floor),  % -1 for Floor? 
+	Directions = init_storage(dict:new(), Memberlist, stop),
 
 	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])).
 
@@ -17,10 +17,29 @@ get_member_list() ->
 	
 
 init_storage(StorageList,MemberList,Initial_value)-> %Consider merging these three functions!
+%	case MemberList of 
+%		[Member | Rest] ->	
+%			New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
+%			init_storage(New_storage,Rest,Initial_value);
+%		[] ->
+%			StorageList
+%	end.
 	case MemberList of 
 		[Member | Rest] ->	
-			New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
-			init_storage(New_storage,Rest,Initial_value);
+			case (Member == node()) of 
+				true ->
+					New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
+					io:fwrite("Initializing state_floor as: ~w for elevator: ~w ~n",[Initial_value, Member]), %DEBUG
+					init_storage(New_storage,Rest,Initial_value);
+				false ->
+					{?STATE_STORAGE_PID, Member} ! {get_state, {self(), Member}}, % Spør den gitte noden om dens egen state
+					receive
+						{ok, State} ->
+						State
+					end,
+					New_storage = dict:append(Member, State , StorageList),  %Assuming we will not initialize state machine unless in state init
+					init_storage(New_storage,Rest,State)
+			end;
 		[] ->
 			StorageList
 	end.
@@ -29,19 +48,19 @@ storage_loop(States,Last_known_floors,Directions) ->
 	receive
 		{get_state, {Pid, Key}} ->
 			{_ok,[State | _Meh]} = dict:find(Key, States),
-			io:fwrite("~w ~n ", [State]), %Debug
+			%io:fwrite("~w ~n ", [State]), %Debug
 			Pid ! {ok,State},
 			storage_loop(States,Last_known_floors,Directions);
 
 		{get_last_known_floor, {Pid, Key}} ->
 			{_ok,[Last_known_floor| _Meh]} = dict:find(Key, Last_known_floors),
-			io:fwrite("~w ~n ", [Last_known_floor]), %Debug
+			io:fwrite("Floor: ~w ~n", [Last_known_floor]), %Debug
 			Pid ! {ok,Last_known_floor},
 			storage_loop(States,Last_known_floors,Directions);
 
 		{get_direction,{Pid,Key}} ->
 			{_ok,[Direction| _Meh]} = dict:find(Key, Directions),
-			io:fwrite("~w ~n ", [Direction]), %Debug
+			io:fwrite("Direction: ~w ~n", [Direction]), %Debug
 			Pid ! {ok,Direction},
 			storage_loop(States,Last_known_floors,Directions);
 
@@ -91,3 +110,11 @@ get_direction(ElevatorID) ->
 		{ok, Direction} ->
 			Direction
 	end.
+update_state(ElevatorID, New_state) ->
+	?STATE_STORAGE_PID ! {set_state, {ElevatorID, New_state}}.
+
+update_floor(ElevatorID, New_floor) ->
+	?STATE_STORAGE_PID ! {set_last_known_floor, {ElevatorID, New_floor}}.
+
+updated_direction(ElevatorID, New_direction) ->
+	?STATE_STORAGE_PID ! {set_direction, {ElevatorID, New_direction}}.
