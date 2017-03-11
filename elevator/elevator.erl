@@ -92,7 +92,12 @@ elevator_monitor() ->
 			?DRIVER_MANAGER_PID  ! {go_to_order, Direction},
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
 			send_remote_state_update(moving), % TODO: Send state til andre noder
-			elevator_monitor()
+			elevator_monitor();
+		{elevator_dropout, ElevatorID} ->
+			lists:foreach(fun(Order) -> 
+				order_distributer:distribute_order(Order) % Funksjonen returnerer Winner, men vi distribuerer den ikke
+			end,
+			queue_module:get_outer_queue(ElevatorID))
 	end.
 
 add_to_queue_on_nodes(Elevator, Order) ->
