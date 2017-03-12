@@ -28,7 +28,7 @@ start() ->
 	spawn(fun() -> storage_maintainer({0,0,0}) end), %EVA
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
-	order_poller(). %TODO shouldn't it be spawned?
+	spawn(fun()-> order_poller() end). %TODO shouldn't it be spawned? Is now spawned, not tested
 
 
 %The function that handles button presses should do as little as possible.....
@@ -156,19 +156,31 @@ driver_manager() ->
 			driver_manager()
 	end.
 
-order_poller() -> %Checks if my elevator has place it should be, when in state idle
-	Next = order_distributer:get_next_order(node()),
-	case Next of
-		false ->
-			timer:sleep(3000), %TODO check poll period 
-			order_poller();
+%order_poller() -> %Checks if my elevator has place it should be, when in state idle
+%	Next = order_distributer:get_next_order(node()),
+%	case Next of
+%		false ->
+%			timer:sleep(3000), %TODO check poll period 
+%			order_poller();
+%
+%		Order ->
+%			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
+%			Relative_position = Order#order.floor - Elevator_floor,
+%			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
+%			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
+%	end.
 
-		Order ->
-			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
-			Relative_position = Order#order.floor - Elevator_floor,
-			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
-			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
-	end.
+%%%%%%%%%%%%%%%%%%% REPLACE order_poller? %%%%%%%%%%%%%%%%%%%%%%%%%%
+new_order_poller(Order) -> 				%Checks if my elevator has place it should be, when in state idle
+	Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
+	Relative_position = Order#order.floor - Elevator_floor,
+	io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
+	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)};
+new_order_poller(false) 				% No orders to take, wait and check again.
+	timer:sleep(3000), %TODO check poll period 
+	new_order_poller(order_distributer:get_next_order(node()));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %EVA: RENAME TO RESPOND
 respone_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
@@ -191,18 +203,25 @@ respone_to_new_floor(false, _) ->
 
 
 button_light_manager(Buttons) ->
-	lists:foreach(fun(Button) -> set_button(Button) end,Buttons),
+	lists:foreach(fun(Button) -> update_button_light(Button) end,Buttons),
 	timer:sleep(50),
 	button_light_manager(Buttons).
 
-set_button(Button)-> %Not happy with name, but tired
+update_button_light(Button)-> %Not happy with name, but tired, renamed from set_button
 	Toset = queue_module:is_order(button_to_order(Button)),
-	case Toset of
-		true ->
-			driver:set_button_lamp(Button#button.type,Button#button.floor,on);
-		false ->
-			driver:set_button_lamp(Button#button.type,Button#button.floor,off)
-	end.
+	set_button (Toset). % Todo
+%	case Toset of
+%		true ->
+%			driver:set_button_lamp(Button#button.type,Button#button.floor,on);
+%		false ->
+%			driver:set_button_lamp(Button#button.type,Button#button.floor,off)
+%	end.
+
+%%%%%%%%%%%%%%% REPLACING THE CASE %%%%%%%%%%%%%%%%%%%%%%%%%
+set_button(true) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
+set_button(false) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off);
+
+
 
 storage_maintainer({0,0,0}) ->
 	global_group:monitor_nodes(true),
