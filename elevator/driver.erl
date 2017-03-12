@@ -30,12 +30,11 @@ start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 move_to_floor_under(Pid) ->
 	set_motor_direction(down),
 	case Floor = get_floor_sensor_signal() of 
-		255 ->
-			move_to_floor_under(Pid);
-		_ -> 
-			Pid ! {ok, Floor}
+		255 -> move_to_floor_under(Pid);
+		_ -> Pid ! {ok, Floor}
 	end,
 	set_motor_direction(stop).
+
 	
 stop() ->
     driver ! stop.
@@ -49,42 +48,75 @@ sensor_poller(Sensor_monitor_pid)->
 sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	New_floor = get_floor_sensor_signal(),
-	case (New_floor /= Last_floor) and (New_floor /= 255) of %Reached a new floor if it is not last floor or no floor
-		true ->
-			io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
-			Sensor_monitor_pid ! {new_floor_reached, New_floor}, %DEBUG
-			true;
-		false ->
-			false
-	end,
+	Floor_sensor_reaction(New_floor == Last_floor, New_floor), % DEBUG can this pattern replace the case? 
+
+%	case (New_floor /= Last_floor) and (New_floor /= 255) of %Reached a new floor if it is not last floor or no floor
+%		true ->
+%			io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
+%			Sensor_monitor_pid ! {new_floor_reached, New_floor}, %DEBUG
+%			true;
+%		false ->
+%			false
+%	end,
+
 	%Need to check for button sensor input
 	Updated_buttons = button_sensor_poller(Sensor_monitor_pid, Buttons,[]),
 	timer:sleep(50),
 	sensor_poller(Sensor_monitor_pid, New_floor, Updated_buttons).
 
-button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
-	case Old_buttons of
+Floor_sensor_reaction(true , _New_floor) ->
+	false;
+Floor_sensor_reaction(false , 255) ->
+	false;
+Floor_sensor_reaction(true , New_floor) ->
+	io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
+	Sensor_monitor_pid ! {new_floor_reached, New_floor}.
 
-		[Button | Rest ] -> %Still have buttons to check
-			Floor = Button#button.floor,
-			ButtonType = Button#button.type,
-			State = Button#button.state,
-			New_state = get_button_signal(ButtonType,Floor),
 
-			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
-				true ->
-					Sensor_monitor_pid ! {button_pressed, Floor, ButtonType}, %DEBUG
-					true;
-				false  ->
-					false
-			end,
+%button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
+%	case Old_buttons of
+%
+%		[Button | Rest ] -> %Still have buttons to check
+%			Floor = Button#button.floor,
+%			ButtonType = Button#button.type,
+%			State = Button#button.state,
+%			New_state = get_button_signal(ButtonType,Floor),
+%
+%			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
+%				true ->
+%					Sensor_monitor_pid ! {button_pressed, Floor, ButtonType}, %DEBUG
+%					true;
+%				false  ->
+%					false
+%			end,
+%
+%			New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
+%			button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons);
+%
+%		[] -> %No more buttons to check, return
+%			Updated_buttons
+%	end.
 
-			New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
-			button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons);
+%%%%%%%%%%%%%%%%%%%%% DEBUG Can this thing replace button_sensor_poller? %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+new_button_sensor_poller(Sensor_monitor_pid, [Button | Rest], Updated_buttons) -> % Still have more buttons to check
+	Floor = Button#button.floor,
+	ButtonType = Button#button.type,
+	State = Button#button.state,
+	New_state = get_button_signal(ButtonType,Floor),
 
-		[] -> %No more buttons to check, return
-			Updated_buttons
-	end.
+	react_to_button_press((New_state /= State) and (New_state == 1), Sensor_monitor_pid, Floor, ButtonType),
+
+	New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
+	new_button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons);
+new_button_sensor_poller(Sensor_monitor_pid, [], Updated_buttons) -> % No more buttons, return
+	Updated_buttons.
+
+react_to_button_press(false, SENSOR_MONITOR_PID, Floor, ButtonType) ->
+	Sensor_monitor_pid ! {button_pressed, Floor, ButtonType};
+react_to_button_press(true, _SENSOR_MONITOR_PID, _Floor, _ButtonType) ->
+	false.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 %%%%%%% ERL VERSIONS OF C FUNCTIONS %%%%%%%%
 init() -> call_port(elev_init).

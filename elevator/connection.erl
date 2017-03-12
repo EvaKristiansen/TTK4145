@@ -22,20 +22,27 @@ init()->
 	
 listen_for_connections(ListenSocket) ->
 	{ok,{_,Sender,NodeName}} = gen_udp:recv(ListenSocket,0),
-
+	react_to_connection(Sender, ListenSocket). % DEBUG Can this pattern replace the case? 
 	%Making sure we got a message from the correct place
-	case Sender  of
-		?SEND_PORT ->
-			%Debug
-			Node = list_to_atom(NodeName),
-			establishconnection(Node),
-%			queue_module:update_queue(Node), % DEBUG Vi må oppdatere køen, bruke funksjonen update_queue/1 på noe tidspunkt
-			listen_for_connections(ListenSocket);
+%	case Sender  of
+%		?SEND_PORT ->
+%			%Debug
+%			Node = list_to_atom(NodeName),
+%			establishconnection(Node),
+%			listen_for_connections(ListenSocket);
+%
+%		_ ->
+%			listen_for_connections(ListenSocket)
+%	end.
 
-		_ ->
-			listen_for_connections(ListenSocket)
-	end.
-	
+%%%%%%%%%%%%% WORK AS REPLACEMENT? %%%%%%%%%%%%%%%%%%
+react_to_connection(?SEND_PORT, ListenSocket) ->
+	Node = list_to_atom(NodeName),
+	establishconnection(Node),
+	listen_for_connections(ListenSocket);
+react_to_connection(_Sender, ListenSocket) ->
+	listen_for_connections(ListenSocket).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_my_list_ip() ->
 	{ok, [IpTuple | _IpTail]} = inet:getif(),
@@ -48,13 +55,11 @@ broadcast_loop(SendSocket) ->
 
 establishconnection(Node) ->
 	case newnode(Node) of
-		true ->
-			net_adm:ping(Node);
-		false ->
-			noop
+		true -> net_adm:ping(Node);
+		false -> ok
 	end.
 
-	
+
 newnode(Node) ->
 	Nodelist = [node()|nodes()],
 	(not lists:member(Node,Nodelist)).
