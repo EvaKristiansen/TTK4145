@@ -71,7 +71,7 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 			queue_storage_loop(Queues);
 
 		{update, New_member} ->
-			Known_information = dict:find(atom_to_list(New_member)++"_inner", Queues),
+			Known_information = dict:find(create_key(New_member, inner), Queues),
 			add_member_if_unkown(Known_information, New_member); % TODO REPLACEMET
 %			case dict:find(atom_to_list(New_member)++"_inner", Queues) of
 %				{ok, _} ->
