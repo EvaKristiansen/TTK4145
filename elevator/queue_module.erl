@@ -2,10 +2,8 @@
 - compile(export_all).
 - record(order,{floor,type}).
 
-- define(IN_KEY, 13). %TODO: REMOVE!
-- define(OUT_KEY, 42).
 - define(QUEUE_PID, queue).
-- define(PROCESS_GROUP_NAME, nodes). %reconsider
+- define(PROCESS_GROUP_NAME, nodes). %reconsider, bad name because of nodes()?
 - define(INNER, "_inner").
 - define(OUTER, "_outer").
 
@@ -22,18 +20,28 @@ get_member_list() ->
 	[node()] ++ nodes().	
 	
 
-init_storage(Queues,MemberList)->
-	case MemberList of 
-		[Member | Rest] ->	
-			In_name = atom_to_list(Member) ++ "_inner",
-			Out_name = atom_to_list(Member) ++ "_outer",
+%init_storage(Queues,MemberList)->
+%	case MemberList of 
+%		[Member | Rest] ->	
+%			In_name = atom_to_list(Member) ++ "_inner",
+%			Out_name = atom_to_list(Member) ++ "_outer",
+%
+%			Temp_dict = dict:append(In_name, ordsets:new(), Queues),
+%			New_Queues = dict:append(Out_name, ordsets:new(), Temp_dict),
+%			init_storage(New_Queues,Rest);
+%		[] ->
+%			Queues
+%	end.
 
-			Temp_dict = dict:append(In_name, ordsets:new(), Queues),
-			New_Queues = dict:append(Out_name, ordsets:new(), Temp_dict),
-			init_storage(New_Queues,Rest);
-		[] ->
-			Queues
-	end.
+%%%%%%%%%%% REPLACEMENT OF init_storage, NOT TESTED %%%%%%%%%%%%%%%
+new_init_storage(Queues, [Memeber | Rest]) ->
+	In_name = atom_to_list(Member) ++ "_inner",
+	Out_name = atom_to_list(Member) ++ "_outer",
+	Temp_dict = dict:append(In_name, ordsets:new(), Queues),
+	New_Queues = dict:append(Out_name, ordsets:new(), Temp_dict),
+	new_init_storage(New_Queues,Rest);
+new_init_storage(Queues, []) -> Queues.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 update_queue(New_member) ->
 	?QUEUE_PID ! {update, New_member}.
@@ -63,17 +71,19 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 			queue_storage_loop(Queues);
 
 		{update, New_member} ->
-			case dict:find(atom_to_list(New_member)++"_inner", Queues) of
-				{ok, _} ->
-					ok;
-				error ->
-					In_name = atom_to_list(New_member) ++ "_inner",
-					Out_name = atom_to_list(New_member) ++ "_outer",
-
-					Temp_dict = dict:append(In_name, ordsets:new(), Queues),
-					UpdatedQueues = dict:append(Out_name, ordsets:new(), Temp_dict),
-					queue_storage_loop(UpdatedQueues)
-			end;
+			Known_information = dict:find(atom_to_list(New_member)++"_inner", Queues),
+			add_member_if_unkown(Known_information, New_member); % TODO REPLACEMET
+%			case dict:find(atom_to_list(New_member)++"_inner", Queues) of
+%				{ok, _} ->
+%					ok;
+%				error ->
+%					In_name = atom_to_list(New_member) ++ "_inner",
+%					Out_name = atom_to_list(New_member) ++ "_outer",
+%
+%					Temp_dict = dict:append(In_name, ordsets:new(), Queues),
+%					UpdatedQueues = dict:append(Out_name, ordsets:new(), Temp_dict),
+%					queue_storage_loop(UpdatedQueues)
+%			end;
 
 		{get_queue, {Pid, Key}} ->
 			{_ok,[SubjectSet|_Meh]} = dict:find(Key, Queues),
@@ -81,14 +91,25 @@ queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
 			queue_storage_loop(Queues)
 	end.
 
+%%%%%%%%%% REPLACEMENT FOR CASE, NOT TESTED %%%%%%%%%%%%%%
+add_member_if_unkown({ok, _}, _New_member) -> ok;
+add_member_if_unkown(error, New_member) ->
+	In_name = atom_to_list(New_member) ++ "_inner",
+	Out_name = atom_to_list(New_member) ++ "_outer",
+	Temp_dict = dict:append(In_name, ordsets:new(), Queues),
+	UpdatedQueues = dict:append(Out_name, ordsets:new(), Temp_dict),
+	queue_storage_loop(UpdatedQueues).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 add_to_queue(ElevatorID, Order) -> % Er en dum funksjon, som bare setter inn basert på input, order_distributer bestemmer hvor
-	case Order#order.type == inner of 
-		true ->
-			Key = atom_to_list(ElevatorID) ++ "_inner";
-		false ->
-			Key = atom_to_list(ElevatorID) ++ "_outer"
-	end,
+	Key = create_key(ElevatorID, Order#order.type), % TODO Working replacement?
+%	case Order#order.type == inner of 
+%		true ->
+%			Key = atom_to_list(ElevatorID) ++ "_inner";
+%		false ->
+%			Key = atom_to_list(ElevatorID) ++ "_outer"
+%	end,
 
 	?QUEUE_PID ! {add, {self(), Key, Order}},
 
@@ -101,51 +122,77 @@ add_to_queue(ElevatorID, Order) -> % Er en dum funksjon, som bare setter inn bas
 
 	end.
 
+%%%%%%%%%%%%%%%%%%%% Creating those keys yo NOT TESTED %%%%%%%%%%%%%%%%%%%%%
+create_key(Elevator_ID, inner) -> atom_to_list(ElevatorID) ++ "_inner";
+create_key(Elevator_ID, outer) -> atom_to_list(ElevatorID) ++ "_outer".
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 is_order(Order) ->
 	is_order(Order,get_member_list()).
 	
-is_order(Order, MemberList) ->
-	case MemberList of
-		[Member | Rest] ->
-			case Order#order.type == inner of 
-				true ->
-					Key = atom_to_list(Member) ++ "_inner";
-				false ->
-					Key = atom_to_list(Member) ++ "_outer"
-			end,
+%is_order(Order, MemberList) ->
+%	case MemberList of
+%		[Member | Rest] ->
+%			case Order#order.type == inner of 
+%				true ->
+%					Key = atom_to_list(Member) ++ "_inner"; % This can be replaced
+%				false ->
+%					Key = atom_to_list(Member) ++ "_outer"
+%			end,
+%
+%			?QUEUE_PID ! {is_in_queue, {self(), Key, Order}},
+%			receive 
+%				{ok, false} ->
+%					is_order(Order, Rest);
+%				{ok, true} ->
+%					true
+%				after 50 ->
+%					io:fwrite("isOrder recieved nothing ~n ", []),
+%					error
+%			end;
+%
+%		[] ->
+%			false
+%	end.
 
-			?QUEUE_PID ! {is_in_queue, {self(), Key, Order}},
-			receive 
-				{ok, false} ->
-					is_order(Order, Rest);
-				{ok, true} ->
-					true
-				after 50 ->
-					io:fwrite("isOrder recieved nothing ~n ", []),
-					error
-			end;
 
-		[] ->
-			false
-	end.
+%%%%%%%%%%%%% REPLACEMENT FOR is_order, NOT TESTED %%%%%%%%%%%%%
+new_is_order(Order, [Member | Rest]) ->
+	Key = create_key(Member, Order#order.type),
+	?QUEUE_PID ! {is_in_queue, {self(), Key, Order}},
+	receive 
+		{ok, false} ->
+			is_order(Order, Rest);
+		{ok, true} ->
+			true
+		after 50 ->
+			io:fwrite("isOrder recieved nothing ~n ", []),
+			error
+	end;
+new_is_order(Order, []) ->
+	false.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 is_floor_in_queue(ElevatorID, Floor) ->
-	InKey = atom_to_list(ElevatorID) ++ "_inner",
-	OutKey = atom_to_list(ElevatorID) ++ "_outer",
+%	InKey = atom_to_list(ElevatorID) ++ "_inner",
+%	OutKey = atom_to_list(ElevatorID) ++ "_outer",
+	InKey = create_key(Elevator_ID, inner),
+	OutKey = create_key(Elevator_ID, outer),
 	Order1  = #order{floor = Floor, type = down},
 	Order2  = #order{floor = Floor, type = inner},
 	Order3  = #order{floor = Floor, type = up},
 
 	?QUEUE_PID ! {is_in_queue, {self(), OutKey, Order1}},
-		receive
-			{ok, Value1} ->
-				true
-		end,
+	receive
+		{ok, Value1} ->
+			true
+	end,
 	?QUEUE_PID ! {is_in_queue, {self(), InKey, Order2}},
-		receive
-			{ok, Value2} ->
-				true
-		end,
+	receive
+		{ok, Value2} ->
+			true
+	end,
 	?QUEUE_PID ! {is_in_queue, {self(), OutKey, Order3}},
 	receive
 			{ok, Value3} ->
@@ -154,8 +201,10 @@ is_floor_in_queue(ElevatorID, Floor) ->
 	Value1 or Value2 or Value3.
 
 remove_from_queue(ElevatorID, Floor) ->
-	InKey = atom_to_list(ElevatorID) ++ "_inner",
-	OutKey = atom_to_list(ElevatorID) ++ "_outer",
+%	InKey = atom_to_list(ElevatorID) ++ "_inner",
+%	OutKey = atom_to_list(ElevatorID) ++ "_outer",
+	InKey = create_key(Elevator_ID, inner),
+	OutKey = create_key(Elevator_ID, outer),
 	Order1  = #order{floor = Floor, type = down},
 	Order2  = #order{floor = Floor, type = inner},
 	Order3  = #order{floor = Floor, type = up},
