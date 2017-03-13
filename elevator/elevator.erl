@@ -80,6 +80,7 @@ elevator_monitor() ->
 	end.
 
 add_to_queue_on_nodes(Elevator, Order) ->
+	io:fwrite("Broadcasted orders to ~w ~n", [nodes()]),
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {add_order, Elevator, Order} end, nodes()).
 
 send_remote_state_update(State) ->
@@ -94,6 +95,7 @@ send_remote_floor_update(Floor) ->
 remote_listener() -> % TODO
 	receive
 		{add_order, Elevator, Order} ->
+			io:fwrite("Received order from elevator ~n", []),
 			queue_module:add_to_queue(Elevator, Order);
 
 
