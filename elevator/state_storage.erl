@@ -65,7 +65,7 @@ storage_loop(States,Last_known_floors,Directions) ->
 
 		{update, New_member} ->
 			Known_information = dict:find(New_member, States),
-			{Updated_states, Updated_floors, Updated_directions} = add_member_if_unkown(Known_information, New_member, States), % TODO REPLACEMET
+			{Updated_states, Updated_floors, Updated_directions} = add_member_if_unkown(Known_information, New_member, {States, Last_known_floors, Directions}), % TODO REPLACEMET
 			storage_loop(Updated_states, Updated_floors, Updated_directions)
 
 	end.
@@ -73,6 +73,7 @@ storage_loop(States,Last_known_floors,Directions) ->
 add_member_if_unkown({ok, _}, New_member, {States, Last_known_floors, Directions}) ->
 	Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)), %TODO tenk på unknown DO WE NEED TO APPEND?
 	{Updated_states, Last_known_floors, Directions};
+
 add_member_if_unkown(error, New_member, {States, Last_known_floors, Directions}) ->
 	Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
 	Updated_last_known_floors = dict:append(New_member, -1 ,Last_known_floors),
