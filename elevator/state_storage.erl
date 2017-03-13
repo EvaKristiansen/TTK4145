@@ -64,7 +64,7 @@ storage_loop(States,Last_known_floors,Directions) ->
 			storage_loop(States,Last_known_floors,Updated_directions);
 
 		{update, New_member} ->
-			Known_information = dict:find(New_member, {States, Last_known_floors, Directions}),
+			Known_information = dict:find(New_member, States),
 			{Updated_states, Updated_floors, Updated_directions} = add_member_if_unkown(Known_information, New_member, States), % TODO REPLACEMET
 			storage_loop(Updated_states, Updated_floors, Updated_directions)
 
