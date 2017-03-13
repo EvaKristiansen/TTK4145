@@ -38,7 +38,6 @@ storage_loop(States,Last_known_floors,Directions) ->
 	receive
 		{get_state, {Pid, Key}} ->
 			{_ok,[State | _Meh]} = dict:find(Key, States),
-			%io:fwrite("~w ~n ", [State]), %Debug
 			Pid ! {ok,State},
 			storage_loop(States,Last_known_floors,Directions);
 
