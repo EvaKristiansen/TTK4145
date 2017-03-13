@@ -88,8 +88,6 @@ state_penalty(moving) -> 5;
 state_penalty(door_open) -> 7;
 state_penalty(stuck) -> 1000.
 
-%distance_penalty(Order,Elevator_floor) ->
-%	abs(Order#order.floor - Elevator_floor).
 
 sign(Argument) ->
 	return_sign(Argument >=  0). % This defines 0 as positive
@@ -97,20 +95,8 @@ sign(Argument) ->
 
 return_sign(true) -> 1;
 return_sign(false) -> -1.
-	
-%turn_penalty(Order_floor, Order_type, Elevator_floor, Elevator_direction) ->
-%	Order = #order{floor = Order_floor, type = Order_type},
-%	turn_penalty(Order, Elevator_floor, direction_to_int(Elevator_direction)).
-%
-%turn_penalty(Order, Elevator_floor, Elevator_direction_int) ->
-%	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
-%	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
-%	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
-%	get_penalty(Elevator_direction_int, Moving_towards_pling, Equal_direction).
 
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%% REPLACE TURN AND DISTANCE PENALTY? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 position_penalty(_, _, 0) ->
 	0;
 position_penalty(true, true , Distance) ->
@@ -125,7 +111,6 @@ position_penalty(false, true, Distance) ->
 position_penalty(false, false , Distance) ->
 	Distance + 10. %TURN PENALTY = 10, DEFINE?
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 order_type_to_int(down) -> -1; %Consider merging with function below
