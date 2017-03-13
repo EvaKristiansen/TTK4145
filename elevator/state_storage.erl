@@ -16,57 +16,24 @@ get_member_list() ->
 	[node()] ++ nodes().
 	
 
-%init_storage(StorageList,MemberList,Initial_value)-> %Consider merging these three functions!
-%
-%%%%%% THIS SECTION WAS COMMENTED OUT EARLIER %%%%%%%%
-%%	case MemberList of 
-%%		[Member | Rest] ->	
-%%			New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
-%%			init_storage(New_storage,Rest,Initial_value);
-%%		[] ->
-%%			StorageList
-%%	end.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%	case MemberList of 
-%		[Member | Rest] ->	
-%			case (Member == node()) of 
-%				true ->
-%					New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
-%					io:fwrite("Initializing state_floor as: ~w for elevator: ~w ~n",[Initial_value, Member]), %DEBUG
-%					init_storage(New_storage,Rest,Initial_value);
-%				false ->
-%					{?STATE_STORAGE_PID, Member} ! {get_state, {self(), Member}}, % Spør den gitte noden om dens egen state
-%					receive
-%						{ok, State} ->
-%						State
-%					end,
-%					New_storage = dict:append(Member, State , StorageList),  %Assuming we will not initialize state machine unless in state init
-%					init_storage(New_storage,Rest,State)
-%			end;
-%		[] ->
-%			StorageList
-%	end.
-
-%%%%%%%%%%%%%% REPLACEMENT init_storage, NOT TESTED %%%%%%%%%%%%%%%%%%%%%%%%%%
+init_storage(StorageList, [], _Inital_value) -> StorageList;
 init_storage(StorageList, MemberList, Initial_value) ->
 	[Member | Rest] = MemberList,
-	add_storage(Member == node(), StorageList, MemberList, Initial_value),
-init_storage(StorageList, [], _Inital_value) -> StorageList.
+	add_storage(Member == node(), StorageList, Member, Rest, Initial_value).
 
-add_storage(true, StorageList, [Member | Rest], Initial_value) ->
+add_storage(true, StorageList, Member, Rest, Initial_value) ->
 	New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
 	io:fwrite("Initializing state_floor as: ~w for elevator: ~w ~n",[Initial_value, Member]), %DEBUG
 	init_storage(New_storage,Rest,Initial_value);
-add_storage(false, StorageList, [Member | Rest], Initial_value) ->
+add_storage(false, StorageList, Member, Rest, _Initial_value) ->
 	{?STATE_STORAGE_PID, Member} ! {get_state, {self(), Member}}, % Spør den gitte noden om dens egen state
 	receive
 		{ok, State} ->
 		State
 	end,
 	New_storage = dict:append(Member, State , StorageList),  %Assuming we will not initialize state machine unless in state init
-	init_storage(New_storage,Rest,State)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	init_storage(New_storage,Rest,State).
+
 
 storage_loop(States,Last_known_floors,Directions) ->
 	receive
@@ -101,32 +68,20 @@ storage_loop(States,Last_known_floors,Directions) ->
 			storage_loop(States,Last_known_floors,Updated_directions);
 
 		{update, New_member} ->
-			Known_information = dict:find(New_member, States),
-			add_member_if_unkown(Known_information, New_member) % TODO REPLACEMET
-
-%			case dict:find(New_member,States) of
-%				{ok,_} ->
-%					Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)), %TODO tenk på unknown
-%					storage_loop(Updated_states,Last_known_floors,Directions);
-%				error -> 
-%					Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
-%					Updated_last_known_floors = dict:append(New_member, -1 ,Last_known_floors),
-%					Updated_directions = dict:append(New_member, 0, Directions),
-%					storage_loop(Updated_states,Updated_last_known_floors,Updated_directions)
-%			end
+			Known_information = dict:find(New_member, {States, Last_known_floors, Directions}),
+			{Updated_states, Updated_floors, Updated_directions} = add_member_if_unkown(Known_information, New_member, States), % TODO REPLACEMET
+			storage_loop(Updated_states, Updated_floors, Updated_directions)
 
 	end.
 
-%%%%%%%%% REPLACEMENT FOR CASE NOT TESTED %%%%%%%%%%%%%%%%%%%
-add_member_if_unkown({ok, _}, Member) ->
+add_member_if_unkown({ok, _}, New_member, {States, Last_known_floors, Directions}) ->
 	Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)), %TODO tenk på unknown DO WE NEED TO APPEND?
-	storage_loop(Updated_states,Last_known_floors,Directions);
-add_member_if_unkown(error) ->
+	{Updated_states, Last_known_floors, Directions};
+add_member_if_unkown(error, New_member, {States, Last_known_floors, Directions}) ->
 	Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
 	Updated_last_known_floors = dict:append(New_member, -1 ,Last_known_floors),
 	Updated_directions = dict:append(New_member, 0, Directions),
-	storage_loop(Updated_states,Updated_last_known_floors,Updated_directions)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	{Updated_states, Updated_last_known_floors, Updated_directions}.
 
 
 get_state(ElevatorID) ->

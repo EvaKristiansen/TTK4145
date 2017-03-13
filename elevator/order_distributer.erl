@@ -36,58 +36,39 @@ choose_next_order(_Option1,Option2,_Option1_penalty,_Option2_penalty) ->
 
 distribute_order(Order) -> 
 	Memberlist = [node()|nodes()],
-	Penalties = getpenalties(Memberlist,[],Order),	
+	Penalties = get_penalties(Memberlist,[],Order),
 	Winner = choose_winner(Memberlist, Penalties, {10000, dummy@member}),
 	queue_module:add_to_queue(Winner, Order),
 	Winner.
 
-%choose_winner(Memberlist, Penalties, {Lowest_value, Member}) ->
-%	case Memberlist of 
-%		[Member_head | Member_rest] -> 
-%			[Penalty | Penalties_rest] = Penalties,
-%			case Penalty < Lowest_value of % TODO replace nested case? 
-%				true ->
-%					choose_winner(Member_rest, Penalties_rest, {Penalty, Member_head});
-%				false ->
-%					choose_winner(Member_rest, Penalties_rest, {Lowest_value, Member})
-%			end;
-%		[] ->
-%			Member
-%	end.
 
-%%%%%%%%%%%%%% REPLACEMENT FOR choose_winner NOT TESTED %%%%%%%%%%%%%%%%
-new_choose_winner([Member_head | Member_rest], Penalties, {Lowest_value, Member}) ->
+choose_winner([], _Penalties, {_Lowest_value, Member}) -> Member;
+choose_winner(MemberList, Penalties, Best_so_far) ->
+	[Member | Rest] = MemberList,
+	choose_winner(Member, Rest, Penalties, Best_so_far).
+
+choose_winner(Member_head, Member_rest, Penalties, {Lowest_value, Member}) ->
 	[Penalty | Penalties_rest] = Penalties,
 	case Penalty < Lowest_value of % Har tenkt på å erstatte denne, men da får vi 7 argument? 
 		true ->
 			choose_winner(Member_rest, Penalties_rest, {Penalty, Member_head});
 		false ->
 			choose_winner(Member_rest, Penalties_rest, {Lowest_value, Member})
-	end;
-new_choose_winner([], _Penalties, {_Lowest_value, Member}) -> Member.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	end.
 
-%getpenalties(Memberlist, Penalties, Order) ->
-%	case Memberlist of
-%		[Member | Rest] ->
-%			State = state_storage:get_state(Member), %Can send to FSM and receive in stead, more erlangish I think
-%			Last_floor = state_storage:get_last_floor(Member),
-%			Direction = state_storage:get_direction(Member),
-%			Penalty = state_penalty(State) + distance_penalty(Order,Last_floor) + turn_penalty(Order,Last_floor,Direction),
-%			getpenalties(Rest,[Penalty|Penalties],order); 
-%		[] ->
-%			Penalties
-%	end.
 
-%%%%%%%%%%%%%%%%%% REPLACEMENT FOR getpenalties NOT TESTED %%%%%%%%%%%%%%%%%%
-new_get_penalties([Member | Rest], Penalties, Order) ->
+get_penalties([], Penalties, _Order) -> Penalties;
+get_penalties(MemberList, Penalties, Order) ->
+	[Member | Rest] = MemberList,
+	get_penalties(Member, Rest, Penalties, Order).
+
+get_penalties(Member, Rest, Penalties, Order) ->
 	State = state_storage:get_state(Member), %Can send to FSM and receive in stead, more erlangish I think
 	Last_floor = state_storage:get_last_floor(Member),
 	Direction = state_storage:get_direction(Member),
 	Penalty = state_penalty(State) + distance_penalty(Order,Last_floor) + turn_penalty(Order,Last_floor,Direction),
-	new_get_penalties(Rest,[Penalty|Penalties],order);
-new_get_penalties([], _Penalties, _Order) -> Penalties.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	get_penalties(Rest,[Penalty|Penalties], Order).
+
 	
 state_penalty(init) -> 1000;
 state_penalty(unknown) -> 1000; %TODO evaluer denne
@@ -101,13 +82,8 @@ distance_penalty(Order,Elevator_floor) ->
 
 sign(Argument) ->
 	return_sign(Argument >=  0). % This defines 0 as positive
-%	case(Argument > 0) of
-%		true -> 
-%			1;
-%		false ->
-%			-1
-%	end. 
-%%%%%%% REPLACING CASE %%%%%%%%%%%%
+
+
 return_sign(true) -> 1;
 return_sign(false) -> -1.
 	
@@ -115,11 +91,11 @@ turn_penalty(Order_floor, Order_type, Elevator_floor, Elevator_direction) ->
 	Order = #order{floor = Order_floor, type = Order_type},
 	turn_penalty(Order, Elevator_floor, direction_to_int(Elevator_direction)).
 
-turn_penalty(Order, Elevator_floor, Elevator_direction) ->
+turn_penalty(Order, Elevator_floor, Elevator_direction_int) ->
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
-	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction),	% True if elevator moves towards pling
-	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction), 		% True if elevator and signal same direction
-	get_penalty(Elevator_direction, Moving_towards_pling, Equal_direction).
+	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
+	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
+	get_penalty(Elevator_direction_int, Moving_towards_pling, Equal_direction).
 
 get_penalty(0, _, _) -> 0;
 get_penalty(_dontcare, true, true) -> 0;

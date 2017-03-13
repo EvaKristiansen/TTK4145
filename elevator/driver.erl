@@ -39,83 +39,45 @@ move_to_floor_under(Pid) ->
 stop() ->
     driver ! stop.
 
-%%%%%%% SENSOR INPUT POLLER %%%%%%%%
-sensor_poller(Sensor_monitor_pid)->
-	% Start for last_floor = -1 and "no buttons pressed" 
-	Buttons = create_buttons([],0),
-	sensor_poller(Sensor_monitor_pid, -1, Buttons).
 
 sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	New_floor = get_floor_sensor_signal(),
-	Floor_sensor_reaction(New_floor == Last_floor, New_floor), % DEBUG can this pattern replace the case? 
-
-%	case (New_floor /= Last_floor) and (New_floor /= 255) of %Reached a new floor if it is not last floor or no floor
-%		true ->
-%			io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
-%			Sensor_monitor_pid ! {new_floor_reached, New_floor}, %DEBUG
-%			true;
-%		false ->
-%			false
-%	end,
+	floor_sensor_reaction(New_floor == Last_floor, New_floor, Sensor_monitor_pid), % DEBUG can this pattern replace the case? 
 
 	%Need to check for button sensor input
 	Updated_buttons = button_sensor_poller(Sensor_monitor_pid, Buttons,[]),
 	timer:sleep(50),
 	sensor_poller(Sensor_monitor_pid, New_floor, Updated_buttons).
 
-Floor_sensor_reaction(true , _New_floor) ->
+floor_sensor_reaction(true, _New_floor, _PID) ->
 	false;
-Floor_sensor_reaction(false , 255) ->
+floor_sensor_reaction(false, 255, _PID) ->
 	false;
-Floor_sensor_reaction(true , New_floor) ->
+floor_sensor_reaction(false, New_floor, Sensor_monitor_pid) ->
 	io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
 	Sensor_monitor_pid ! {new_floor_reached, New_floor}.
 
 
-%button_sensor_poller(Sensor_monitor_pid, Old_buttons, Updated_buttons) ->
-%	case Old_buttons of
-%
-%		[Button | Rest ] -> %Still have buttons to check
-%			Floor = Button#button.floor,
-%			ButtonType = Button#button.type,
-%			State = Button#button.state,
-%			New_state = get_button_signal(ButtonType,Floor),
-%
-%			case(New_state /= State) and (New_state == 1) of %Check if there are possibilities of removing nested-case here
-%				true ->
-%					Sensor_monitor_pid ! {button_pressed, Floor, ButtonType}, %DEBUG
-%					true;
-%				false  ->
-%					false
-%			end,
-%
-%			New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
-%			button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons);
-%
-%		[] -> %No more buttons to check, return
-%			Updated_buttons
-%	end.
+button_sensor_poller(_Sensor_monitor_pid, [], Updated_buttons) -> Updated_buttons; % No more buttons
+button_sensor_poller(Sensor_monitor_pid, Buttons, Updated_buttons) ->
+	[Button | Rest] = Buttons,
+	button_sensor_poller(Sensor_monitor_pid, Button, Rest, Updated_buttons).
 
-%%%%%%%%%%%%%%%%%%%%% DEBUG Can this thing replace button_sensor_poller? %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-new_button_sensor_poller(Sensor_monitor_pid, [Button | Rest], Updated_buttons) -> % Still have more buttons to check
+button_sensor_poller(Sensor_monitor_pid, Button, Rest, Updated_buttons) -> % Still have more buttons to check
 	Floor = Button#button.floor,
 	ButtonType = Button#button.type,
 	State = Button#button.state,
 	New_state = get_button_signal(ButtonType,Floor),
-
 	react_to_button_press((New_state /= State) and (New_state == 1), Sensor_monitor_pid, Floor, ButtonType),
-
 	New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
-	new_button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons);
-new_button_sensor_poller(Sensor_monitor_pid, [], Updated_buttons) -> % No more buttons, return
-	Updated_buttons.
+	button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons).
 
-react_to_button_press(false, SENSOR_MONITOR_PID, Floor, ButtonType) ->
+
+react_to_button_press(true, Sensor_monitor_pid, Floor, ButtonType) ->
 	Sensor_monitor_pid ! {button_pressed, Floor, ButtonType};
-react_to_button_press(true, _SENSOR_MONITOR_PID, _Floor, _ButtonType) ->
+react_to_button_press(false, _SENSOR_MONITOR_PID, _Floor, _ButtonType) ->
 	false.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 %%%%%%% ERL VERSIONS OF C FUNCTIONS %%%%%%%%

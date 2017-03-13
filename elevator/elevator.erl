@@ -29,6 +29,7 @@ start() ->
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
 	spawn(fun()-> order_poller() end). %TODO shouldn't it be spawned? Is now spawned, not tested
+	% TODO, was order_poller() before the new function
 
 
 %The function that handles button presses should do as little as possible.....
@@ -40,31 +41,7 @@ elevator_monitor() ->
 			?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
 			send_remote_floor_update(Floor), 
 			Stop_for_order = queue_module:is_floor_in_queue(node(),Floor),
-
-%			case Stop_for_order of
-%				true ->
-%					%STOP, Remove from order, Send stopped to fsm, open_door
-%					?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
-%					queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
-%					?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
-%					send_remote_state_update(door_open); 
-%				false ->
-%					%Keep goinggit 
-%					ok
-%			end,
-%
-%			%Just to stop in each end:
-%			case ((Floor == 0) or (Floor == 3)) and (not Stop_for_order) of %TODO: REMOVE UGLY CASE ADD PATTERN MATCHING
-%				true ->
-%					?DRIVER_MANAGER_PID  ! {at_end_floor},
-%					?STATE_STORAGE_PID ! {set_state, {node(), idle}},
-%					send_remote_state_update(idle), 
-%					spawn(fun()-> order_poller() end);
-%				false ->
-%				%Keep going
-%					ok
-%			end,
-			respone_to_new_floor(Stop_for_order, Floor),% argument (Stop_for_order, Floor)
+			respond_to_new_floor(Stop_for_order, Floor),% argument (Stop_for_order, Floor)
 			elevator_monitor();
 
 		{button_pressed, Floor, ButtonType} ->
@@ -97,6 +74,7 @@ elevator_monitor() ->
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
 			send_remote_state_update(moving), 
 			elevator_monitor();
+
 		{elevator_dropout, ElevatorID} ->
 			lists:foreach(fun(Order) -> 
 				order_distributer:distribute_order(Order) % Funksjonen returnerer Winner, men vi distribuerer den ikke
@@ -156,49 +134,36 @@ driver_manager() ->
 			driver_manager()
 	end.
 
-%order_poller() -> %Checks if my elevator has place it should be, when in state idle
-%	Next = order_distributer:get_next_order(node()),
-%	case Next of
-%		false ->
-%			timer:sleep(3000), %TODO check poll period 
-%			order_poller();
-%
-%		Order ->
-%			Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
-%			Relative_position = Order#order.floor - Elevator_floor,
-%			io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
-%			?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}
-%	end.
 
-%%%%%%%%%%%%%%%%%%% REPLACE order_poller? %%%%%%%%%%%%%%%%%%%%%%%%%%
-new_order_poller(Order) -> 				%Checks if my elevator has place it should be, when in state idle
+order_poller() ->
+	order_poller(order_distributer:get_next_order(node())).
+order_poller(false) ->				% No orders to take, wait and check again.
+	timer:sleep(3000), %TODO check poll period 
+	order_poller(order_distributer:get_next_order(node()));
+order_poller(Order) -> 				%Checks if my elevator has place it should be, when in state idle
 	Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
 	Relative_position = Order#order.floor - Elevator_floor,
 	io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
-	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)};
-new_order_poller(false) 				% No orders to take, wait and check again.
-	timer:sleep(3000), %TODO check poll period 
-	new_order_poller(order_distributer:get_next_order(node()));
+	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%EVA: RENAME TO RESPOND
-respone_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
+
+respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
 	%STOP, Remove from order, Send stopped to fsm, open_door
 	?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
 	queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
 	?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
 	send_remote_state_update(door_open);
 
-respone_to_new_floor(false, 0) -> 
-	respone_to_new_floor(false, 3);
+respond_to_new_floor(false, 0) -> 
+	respond_to_new_floor(false, 3);
 
-respone_to_new_floor(false, 3) -> 
+respond_to_new_floor(false, 3) -> 
 	?DRIVER_MANAGER_PID  ! {at_end_floor},
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
 	spawn(fun()-> order_poller() end);
-respone_to_new_floor(false, _) ->
+respond_to_new_floor(false, _) ->
 	ok.
 
 
@@ -209,17 +174,11 @@ button_light_manager(Buttons) ->
 
 update_button_light(Button)-> %Not happy with name, but tired, renamed from set_button
 	Toset = queue_module:is_order(button_to_order(Button)),
-	set_button (Toset). % Todo
-%	case Toset of
-%		true ->
-%			driver:set_button_lamp(Button#button.type,Button#button.floor,on);
-%		false ->
-%			driver:set_button_lamp(Button#button.type,Button#button.floor,off)
-%	end.
+	set_button (Toset, Button). % Todo
 
-%%%%%%%%%%%%%%% REPLACING THE CASE %%%%%%%%%%%%%%%%%%%%%%%%%
-set_button(true) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
-set_button(false) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off);
+
+set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
+set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
 
 
 
@@ -251,22 +210,3 @@ direction(Relative_position) when Relative_position < 0 -> down.
 button_to_order(Button) ->
 	#order{floor= Button#button.floor, type = Button#button.type}.
 
-%TODO: THESE TO NOT COMPILE, WHERE ARE THEY USED?
-%add_order_to_queues(0, _Type, Winner) ->
-%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
-%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up}),
-%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = down}),
-%	add_to_queue_on_nodes(Winner,#order{floor = 0, type = up});
-
-%add_order_to_queues(1, Type, Winner) ->
-%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
-%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type});
-%add_order_to_queues(2, Type, Winner) ->
-%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type}),
-%	add_to_queue_on_nodes(Winner,#order{floor = Floor, type = Type});
-
-%add_order_to_queues(3, _Type, Winner) ->
-%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
-%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}),
-%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = down}),
-%	add_to_queue_on_nodes(Winner,#order{floor = 3, type = up}).

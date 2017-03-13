@@ -22,27 +22,15 @@ init()->
 	
 listen_for_connections(ListenSocket) ->
 	{ok,{_,Sender,NodeName}} = gen_udp:recv(ListenSocket,0),
-	react_to_connection(Sender, ListenSocket). % DEBUG Can this pattern replace the case? 
-	%Making sure we got a message from the correct place
-%	case Sender  of
-%		?SEND_PORT ->
-%			%Debug
-%			Node = list_to_atom(NodeName),
-%			establishconnection(Node),
-%			listen_for_connections(ListenSocket);
-%
-%		_ ->
-%			listen_for_connections(ListenSocket)
-%	end.
+	react_to_connection(Sender, ListenSocket, NodeName). %Making sure we got a message from the correct place
 
-%%%%%%%%%%%%% WORK AS REPLACEMENT? %%%%%%%%%%%%%%%%%%
-react_to_connection(?SEND_PORT, ListenSocket) ->
+
+react_to_connection(?SEND_PORT, ListenSocket, NodeName) -> 
 	Node = list_to_atom(NodeName),
 	establishconnection(Node),
 	listen_for_connections(ListenSocket);
-react_to_connection(_Sender, ListenSocket) ->
+react_to_connection(_Sender, ListenSocket, _NodeName) ->
 	listen_for_connections(ListenSocket).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_my_list_ip() ->
 	{ok, [IpTuple | _IpTail]} = inet:getif(),
