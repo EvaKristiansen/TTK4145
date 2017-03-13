@@ -84,8 +84,8 @@ get_penalty(Member, Rest, Penalties, Order) ->
 state_penalty(init) -> 1000;
 state_penalty(unknown) -> 1000; %TODO evaluer denne
 state_penalty(idle) -> 10;
-state_penalty(moving) -> 5;
-state_penalty(door_open) -> 7;
+state_penalty(moving) -> 10;
+state_penalty(door_open) -> 10;
 state_penalty(stuck) -> 1000.
 
 
