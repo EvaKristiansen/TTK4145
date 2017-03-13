@@ -168,28 +168,6 @@ remove_from_queue(ElevatorID, Floor) ->
 	?QUEUE_PID ! {remove, {OutKey, Order3}},
 	ok.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TODO: NEEDED? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-get_first_in_queue(ElevatorID, inner) -> %TODO: MAKE LESS UGLY!
-	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_inner"}},
-	receive
-		{ok,[]} ->
-			First = empty;
-		{ok,[First | _Rest]} ->
-			ok
-	end,
-	First; 
-
-get_first_in_queue(ElevatorID, outer) ->
-	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, outer)}},
-	receive
-		{ok,[]} ->
-			First = empty;
-		{ok,[First | _Rest]} ->
-			ok
-	end,
-	First.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
  get_queue_set(ElevatorID, Position) ->
 	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Position)}},
 	receive 

@@ -68,6 +68,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	State = state_storage:get_state(Member),
 	Elevator_floor = state_storage:get_last_floor(Member),
 	Elevator_direction = state_storage:get_direction(Member),
+	io:fwrite("Getting penalty for member: ~w, with direction: ~w, ~n", [Member, Elevator_direction]), 
 	Elevator_direction_int = direction_to_int(Elevator_direction),
 
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative

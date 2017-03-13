@@ -6,9 +6,9 @@
 init(Floor)-> % Floor? DEBUG
 	Memberlist = get_member_list(),
 	io:fwrite("Memberlist: ~w ~n ", [Memberlist]),
-	States = init_storage(dict:new(), Memberlist, init),
-	Last_known_floors = init_storage(dict:new(), Memberlist, Floor),  % -1 for Floor? 
-	Directions = init_storage(dict:new(), Memberlist, stop),
+	States = init_storage(dict:new(), Memberlist, init, get_state),
+	Last_known_floors = init_storage(dict:new(), Memberlist, Floor, get_last_known_floor),  % -1 for Floor? 
+	Directions = init_storage(dict:new(), Memberlist, stop, get_direction),
 
 	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])).
 
@@ -16,22 +16,23 @@ get_member_list() ->
 	[node()] ++ nodes().
 	
 
-init_storage(StorageList, [], _Inital_value) -> StorageList;
-init_storage(StorageList, MemberList, Initial_value) ->
+init_storage(StorageList, [], _Inital_value, _Type) -> StorageList;
+init_storage(StorageList, MemberList, Initial_value, Type) ->
 	[Member | Rest] = MemberList,
-	add_storage(Member == node(), StorageList, Member, Rest, Initial_value).
+	add_storage(Member == node(), StorageList, Member, Rest, Initial_value, Type).
 
-add_storage(true, StorageList, Member, Rest, Initial_value) ->
+add_storage(true, StorageList, Member, Rest, Initial_value, Type) ->
 	New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
-	init_storage(New_storage,Rest,Initial_value);
-add_storage(false, StorageList, Member, Rest, _Initial_value) ->
-	{?STATE_STORAGE_PID, Member} ! {get_state, {self(), Member}}, % Spør den gitte noden om dens egen state
+	init_storage(New_storage,Rest,Initial_value, Type);
+
+add_storage(false, StorageList, Member, Rest, _Initial_value, Type) ->
+	{?STATE_STORAGE_PID, Member} ! {Type, {self(), Member}}, % Spør den gitte noden om dens egen state
 	receive
 		{ok, State} ->
 		State
 	end,
 	New_storage = dict:append(Member, State , StorageList),  %Assuming we will not initialize state machine unless in state init
-	init_storage(New_storage,Rest,State).
+	init_storage(New_storage,Rest,State, Type).
 
 
 storage_loop(States,Last_known_floors,Directions) ->
@@ -66,6 +67,7 @@ storage_loop(States,Last_known_floors,Directions) ->
 		{update, New_member} ->
 			Known_information = dict:find(New_member, States),
 			{Updated_states, Updated_floors, Updated_directions} = add_member_if_unkown(Known_information, New_member, {States, Last_known_floors, Directions}), % TODO REPLACEMET
+			
 			storage_loop(Updated_states, Updated_floors, Updated_directions)
 	end.
 
