@@ -58,7 +58,7 @@ elevator_monitor() ->
 		{new_destination, stop} ->
 			Floor = state_storage:get_last_floor(node()),
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
-			
+
 			%%%%%%%%%%%%%%%%%%%%%%%%% CURRENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
 
@@ -94,7 +94,7 @@ send_remote_floor_update(Floor) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_floor, node(), Floor} end, nodes()).
 
 send_remote_queue_removal(Floor) ->
-	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {remove_from_queue, {node(), Floor} end, nodes()).
+	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {remove_from_queue, {node(), Floor}} end, nodes()).
 
 
 remote_listener() -> % TODO
@@ -117,7 +117,8 @@ remote_listener() -> % TODO
 			remote_listener();
 
 		{remove_from_queue, {Elevator, Floor}} ->
-			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() ).
+			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() )
+			
 	end.
 
 driver_manager() ->
