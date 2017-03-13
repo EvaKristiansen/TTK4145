@@ -190,6 +190,7 @@ storage_maintainer(Timestamp) ->
 		{nodedown, _Node} ->
 			storage_maintainer(Timestamp);
 		{nodeup, Node} ->
+			io:fwrite("NODE UP : ~w ~n" [Node]),
 			queue_module:update_queue(Node),
 			state_storage:update_storage(Node)
 
