@@ -37,7 +37,6 @@ update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator
 distribute_order({order, Floor, inner}) ->
 	Order = #order{floor=Floor,type = inner},
 	queue_module:add_to_queue(node(),Order),
-	io:fwrite("Gotten in distribute_order with type inner ~n", []),
 	node();
 distribute_order(Order) -> 
 	Memberlist = [node()|nodes()],
@@ -71,7 +70,6 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	State = state_storage:get_state(Member),
 	Elevator_floor = state_storage:get_last_floor(Member),
 	Elevator_direction = state_storage:get_direction(Member),
-	io:fwrite("Getting penalty for member: ~w, with direction: ~w, ~n", [Member, Elevator_direction]), 
 	Elevator_direction_int = direction_to_int(Elevator_direction),
 
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative

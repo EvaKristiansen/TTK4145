@@ -95,18 +95,21 @@ send_remote_floor_update(Floor) ->
 remote_listener() -> % TODO
 	receive
 		{add_order, Elevator, Order} ->
-			io:fwrite("Received order from elevator ~n", []),
-			queue_module:add_to_queue(Elevator, Order);
-
+			io:fwrite("Received order from elevator ~w ~n", [Order]),
+			queue_module:add_to_queue(Elevator, Order),
+			remote_listener();
 
 		{update_state, Elevator, State} ->
-			state_storage:update_state(Elevator, State);
+			state_storage:update_state(Elevator, State),
+			remote_listener();
 
 		{update_floor, Elevator, Floor} ->
-			state_storage:update_floor(Elevator, Floor);
+			state_storage:update_floor(Elevator, Floor),
+			remote_listener();
 
 		{update_direction, Elevator, Direction} ->
-			state_storage:update_direction(Elevator, Direction)
+			state_storage:update_direction(Elevator, Direction),
+			remote_listener()
 	end.
 
 driver_manager() ->
@@ -132,7 +135,6 @@ driver_manager() ->
 
 		{go_to_order, Direction} ->
 			driver:set_motor_direction(Direction),
-			io:fwrite("Setting direction to: ~w ~n", [Direction]),
 			?STATE_STORAGE_PID ! {set_direction, {node(), Direction}},
 			send_remote_direction_update(Direction),
 			driver_manager()
