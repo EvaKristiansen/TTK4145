@@ -14,7 +14,7 @@ init()->
 	Memberlist = get_member_list(),
 	io:fwrite("~w ~n ", [Memberlist]),
 	Queues = init_storage(dict:new(), Memberlist),
-	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues])).
+	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues, none])).
 
 get_member_list() ->
 	[node()] ++ nodes().	
@@ -36,38 +36,54 @@ update_queue(New_member) ->
 	?QUEUE_PID ! {update, New_member}.
 
 
-queue_storage_loop(Queues) -> %TODO: WHAT IS MEH!?
+queue_storage_loop(Queues, My_next) -> %TODO: WHAT IS MEH!?
 	receive
-   	
+
 		{add, {Pid, Key, Order}} ->
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:add_element(Order, SubjectSet),
-			io:fwrite("Adding: ~w ~n ", [New_set]),
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
 			Pid ! {ok,Updated_queues},
-			queue_storage_loop(Updated_queues);
+			queue_storage_loop(Updated_queues, My_next);
 
 		{remove, {Key, Order}} -> 
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:del_element(Order,SubjectSet),
-			io:fwrite("Removing: ~w ~n ", [New_set]),
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
-			queue_storage_loop(Updated_queues);
+			queue_storage_loop(Updated_queues, My_next);
 
 		{is_in_queue, {Pid, Key, Order}} ->
 			{_ok,[SubjectSet | _Meh]} = dict:find(Key, Queues),
 			Pid ! {ok, ordsets:is_element(Order, SubjectSet)},
-			queue_storage_loop(Queues);
+			queue_storage_loop(Queues, My_next);
 
 		{update, New_member} ->
 			Known_information = dict:find(create_key(New_member, inner), Queues),
-			Updated_queues = add_member_if_unkown(Known_information, New_member, Queues), % TODO REPLACEMET
-			queue_storage_loop(Updated_queues); % TODO REPLACEMENT
+			Updated_queues = add_member_if_unkown(Known_information, New_member, Queues), 
+			queue_storage_loop(Updated_queues, My_next); 
 
 		{get_queue, {Pid, Key}} ->
 			{_ok,[SubjectSet|_Meh]} = dict:find(Key, Queues),
 			Pid ! {ok,SubjectSet},
-			queue_storage_loop(Queues)
+			queue_storage_loop(Queues, My_next);
+
+		{get_my_next, Pid} ->
+			Pid ! My_next,
+			queue_storage_loop(Queues, My_next);
+
+		{set_my_next, Next_value} -> 
+			queue_storage_loop(Queues, Next_value)
+
+	end.
+
+set_my_next(Next_value) -> 
+	?QUEUE_PID ! {set_my_next, Next_value}.
+
+get_my_next() ->
+	?QUEUE_PID ! {get_my_next, self()},
+	receive 
+		My_next ->
+			My_next
 	end.
 
 add_member_if_unkown({ok, _}, _New_member, Queues) -> Queues;
@@ -87,7 +103,6 @@ add_to_queue(ElevatorID, Order) ->
 		{ok,_Queue} ->
 			ok;
 		{_,_} ->
-			io:fwrite("Order was not added ~n ", []),
 			error
 
 	end.
@@ -115,9 +130,6 @@ is_order(Order, Member, Rest) ->
 			is_order(Order, Rest);
 		{ok, true} ->
 			true
-		after 50 ->
-			io:fwrite("isOrder recieved nothing ~n ", []),
-			error
 	end.
 
 
@@ -156,6 +168,7 @@ remove_from_queue(ElevatorID, Floor) ->
 	?QUEUE_PID ! {remove, {OutKey, Order3}},
 	ok.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TODO: NEEDED? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 get_first_in_queue(ElevatorID, inner) -> %TODO: MAKE LESS UGLY!
 	?QUEUE_PID ! {get_queue, {self(),atom_to_list(ElevatorID) ++ "_inner"}},
 	receive
@@ -175,11 +188,12 @@ get_first_in_queue(ElevatorID, outer) ->
 			ok
 	end,
 	First.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
  get_queue_set(ElevatorID, Position) ->
 	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Position)}},
 	receive 
-		{ok, Outer_set} ->
+		{ok, Set} ->
 			ok
 	end,
-	Outer_set.
+	Set.

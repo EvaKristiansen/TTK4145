@@ -47,7 +47,6 @@ elevator_monitor() ->
 		{button_pressed, Floor, ButtonType} ->
 			Order = #order{floor = Floor, type = ButtonType},
 			Winner = order_distributer:distribute_order(Order),
-			%add_order_to_queues(Floor, ButtonType, Winner) % TODO forslag for å ordne køprioritering
 			add_to_queue_on_nodes(Winner,Order),
 			elevator_monitor();
 
@@ -60,7 +59,6 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{new_destination, stop} ->
-			io:fwrite("Got new destination at direction: ~w ~n",[stop]), %DEBUG
 			Floor = state_storage:get_last_floor(node()),
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
 			queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
@@ -69,7 +67,6 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{new_destination, Direction} ->
-			io:fwrite("Got new destination at direction: ~w ~n",[Direction]), %DEBUG
 			?DRIVER_MANAGER_PID  ! {go_to_order, Direction},
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
 			send_remote_state_update(moving), 
@@ -95,6 +92,7 @@ remote_listener() -> % TODO
 	receive
 		{add_order, Elevator, Order} ->
 			queue_module:add_to_queue(Elevator, Order);
+
 
 		{update_state, Elevator, State} ->
 			state_storage:update_state(Elevator, State);
@@ -136,17 +134,18 @@ driver_manager() ->
 
 
 order_poller() ->
-	order_poller(order_distributer:get_next_order(node())).
-order_poller(false) ->				% No orders to take, wait and check again.
-	timer:sleep(3000), %TODO check poll period 
-	order_poller(order_distributer:get_next_order(node()));
-order_poller(Order) -> 				%Checks if my elevator has place it should be, when in state idle
+	order_distributer:update_my_next(),
+	order_poller(queue_module:get_my_next()).
+
+order_poller(none) -> % No orders to take, wait and check again.
+	timer:sleep(300), %TODO check poll period 
+	order_poller();
+
+order_poller(Next_floor) -> 				%Checks if my elevator has place it should be, when in state idle
 	Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
-	Relative_position = Order#order.floor - Elevator_floor,
-	io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
+	Relative_position = Next_floor - Elevator_floor,
+	%io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
 	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}.
-
-
 
 respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
 	%STOP, Remove from order, Send stopped to fsm, open_door

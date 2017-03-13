@@ -11,7 +11,7 @@
 
 start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
-	spawn(fun() -> init_port("../driver/elev_port") end), %DEBUG
+	spawn(fun() -> init_port("../driver/elev_port") end),
     %Wait before initializing:
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
@@ -24,7 +24,7 @@ start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
     	end,
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
     Buttons = create_buttons([],0),
-    spawn(fun() -> sensor_poller(Sensor_monitor_pid, Floor, Buttons) end), %DEBUG
+    spawn(fun() -> sensor_poller(Sensor_monitor_pid, Floor, Buttons) end),
     Floor.
  
 move_to_floor_under(Pid) ->
@@ -43,7 +43,7 @@ stop() ->
 sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
 	%Checking floor sensor input
 	New_floor = get_floor_sensor_signal(),
-	floor_sensor_reaction(New_floor == Last_floor, New_floor, Sensor_monitor_pid), % DEBUG can this pattern replace the case? 
+	floor_sensor_reaction(New_floor == Last_floor, New_floor, Sensor_monitor_pid),
 
 	%Need to check for button sensor input
 	Updated_buttons = button_sensor_poller(Sensor_monitor_pid, Buttons,[]),
@@ -55,7 +55,6 @@ floor_sensor_reaction(true, _New_floor, _PID) ->
 floor_sensor_reaction(false, 255, _PID) ->
 	false;
 floor_sensor_reaction(false, New_floor, Sensor_monitor_pid) ->
-	io:fwrite("Updating floor to: ~w, not bein equal to 255 ~n",[New_floor]), %DEBUG
 	Sensor_monitor_pid ! {new_floor_reached, New_floor}.
 
 

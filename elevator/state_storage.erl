@@ -23,7 +23,6 @@ init_storage(StorageList, MemberList, Initial_value) ->
 
 add_storage(true, StorageList, Member, Rest, Initial_value) ->
 	New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
-	io:fwrite("Initializing state_floor as: ~w for elevator: ~w ~n",[Initial_value, Member]), %DEBUG
 	init_storage(New_storage,Rest,Initial_value);
 add_storage(false, StorageList, Member, Rest, _Initial_value) ->
 	{?STATE_STORAGE_PID, Member} ! {get_state, {self(), Member}}, % Spør den gitte noden om dens egen state
@@ -45,13 +44,11 @@ storage_loop(States,Last_known_floors,Directions) ->
 
 		{get_last_known_floor, {Pid, Key}} ->
 			{_ok,[Last_known_floor| _Meh]} = dict:find(Key, Last_known_floors),
-			io:fwrite("Floor: ~w ~n", [Last_known_floor]), %Debug
 			Pid ! {ok,Last_known_floor},
 			storage_loop(States,Last_known_floors,Directions);
 
 		{get_direction,{Pid,Key}} ->
 			{_ok,[Direction| _Meh]} = dict:find(Key, Directions),
-			io:fwrite("Direction: ~w ~n", [Direction]), %Debug
 			Pid ! {ok,Direction},
 			storage_loop(States,Last_known_floors,Directions);
 

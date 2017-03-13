@@ -1,36 +1,38 @@
 - module (order_distributer).
-- export([distribute_order/1,get_next_order/1]).
+- export([distribute_order/1, update_my_next/0]).
 - compile(export_all).
+ -define(NUM_FLOORS, 4).
+ -define(NUM_BUTTONS, 3).
 - record(order,{floor,type}).
 
-get_next_order(ElevatorID) -> % TODO, mulig å forbedre valget? Er det nødvendig i det hele tatt?
-	In_option = queue_module:get_first_in_queue(ElevatorID,inner),
-	Out_option = queue_module:get_first_in_queue(ElevatorID, outer),
-	choose_next_order(ElevatorID,In_option,Out_option).
 
-choose_next_order(_ElevatorID,empty,empty) ->
-	false;
-choose_next_order(_ElevatorID,Option1,empty) ->
-	Option1;
 
-choose_next_order(_ElevatorID,empty,Option2) ->
-	Option2;
+update_my_next() ->
+	Elevator_floor = state_storage:get_last_floor(node()),
+	Elevator_direction = state_storage:get_direction(node()),
+	Elevator_direction_int = direction_to_int(Elevator_direction),
+	Outer_list = ordsets:to_list(queue_module:get_queue_set(node(), outer)),
+	Inner_list = ordsets:to_list(queue_module:get_queue_set(node(), inner)),
+	Order_list = Inner_list ++ Outer_list,
+	update_my_next(Order_list, {10000, #order{floor = none, type = none}}, Elevator_floor, Elevator_direction_int).
 
-choose_next_order(ElevatorID,Option1,Option2) ->			
-	
-	Last_floor = state_storage:get_last_floor(ElevatorID),
-	Direction = state_storage:get_direction(ElevatorID),
+update_my_next([],{_Best_penalty, Best_order}, _Elevator_floor, _Elevator_direction_int) -> queue_module:set_my_next(Best_order#order.floor);
 
-	Option1_penalty = distance_penalty(Option1,Last_floor) + turn_penalty(Option1,Last_floor,Direction),
-	Option2_penalty = distance_penalty(Option1,Last_floor) + turn_penalty(Option1,Last_floor,Direction),
+update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator_direction_int) ->
+	[Order | Rest] = Order_list,
 
-	choose_next_order(Option1,Option2,Option1_penalty,Option2_penalty).
+	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
+	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
+	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
+	Distance = abs(Relative_position),
 
-choose_next_order(Option1,_Option2,Option1_penalty,Option2_penalty) when Option2_penalty >= Option1_penalty ->
-	Option1;
-choose_next_order(_Option1,Option2,_Option1_penalty,_Option2_penalty) ->
-	Option2.
-
+	Penalty = position_penalty(Moving_towards_pling,Equal_direction,Distance),
+	case (Penalty < Best_penalty) of 
+		true ->
+			update_my_next(Rest, {Penalty,Order}, Elevator_floor, Elevator_direction_int);
+		false ->
+			update_my_next(Rest, {Best_penalty, _Best_order}, Elevator_floor, Elevator_direction_int)
+	end.
 
 
 
@@ -60,16 +62,23 @@ choose_winner(Member_head, Member_rest, Penalties, {Lowest_value, Member}) ->
 get_penalties([], Penalties, _Order) -> Penalties;
 get_penalties(MemberList, Penalties, Order) ->
 	[Member | Rest] = MemberList,
-	get_penalties(Member, Rest, Penalties, Order).
+	get_penalty(Member, Rest, Penalties, Order).
 
-get_penalties(Member, Rest, Penalties, Order) ->
-	State = state_storage:get_state(Member), %Can send to FSM and receive in stead, more erlangish I think
-	Last_floor = state_storage:get_last_floor(Member),
-	Direction = state_storage:get_direction(Member),
-	Penalty = state_penalty(State) + distance_penalty(Order,Last_floor) + turn_penalty(Order,Last_floor,Direction),
+get_penalty(Member, Rest, Penalties, Order) ->
+	State = state_storage:get_state(Member),
+	Elevator_floor = state_storage:get_last_floor(Member),
+	Elevator_direction = state_storage:get_direction(Member),
+	Elevator_direction_int = direction_to_int(Elevator_direction),
+
+	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
+	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
+	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
+	Distance = abs(Relative_position),
+	
+	Penalty = state_penalty(State) + position_penalty(Moving_towards_pling,Equal_direction,Distance),
 	get_penalties(Rest,[Penalty|Penalties], Order).
 
-	
+
 state_penalty(init) -> 1000;
 state_penalty(unknown) -> 1000; %TODO evaluer denne
 state_penalty(idle) -> 10;
@@ -77,8 +86,8 @@ state_penalty(moving) -> 5;
 state_penalty(door_open) -> 7;
 state_penalty(stuck) -> 1000.
 
-distance_penalty(Order,Elevator_floor) ->
-	abs(Order#order.floor - Elevator_floor).
+%distance_penalty(Order,Elevator_floor) ->
+%	abs(Order#order.floor - Elevator_floor).
 
 sign(Argument) ->
 	return_sign(Argument >=  0). % This defines 0 as positive
@@ -87,22 +96,35 @@ sign(Argument) ->
 return_sign(true) -> 1;
 return_sign(false) -> -1.
 	
-turn_penalty(Order_floor, Order_type, Elevator_floor, Elevator_direction) ->
-	Order = #order{floor = Order_floor, type = Order_type},
-	turn_penalty(Order, Elevator_floor, direction_to_int(Elevator_direction)).
+%turn_penalty(Order_floor, Order_type, Elevator_floor, Elevator_direction) ->
+%	Order = #order{floor = Order_floor, type = Order_type},
+%	turn_penalty(Order, Elevator_floor, direction_to_int(Elevator_direction)).
+%
+%turn_penalty(Order, Elevator_floor, Elevator_direction_int) ->
+%	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
+%	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
+%	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
+%	get_penalty(Elevator_direction_int, Moving_towards_pling, Equal_direction).
 
-turn_penalty(Order, Elevator_floor, Elevator_direction_int) ->
-	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
-	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
-	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
-	get_penalty(Elevator_direction_int, Moving_towards_pling, Equal_direction).
 
-get_penalty(0, _, _) -> 0;
-get_penalty(_dontcare, true, true) -> 0;
-get_penalty(_dontcare, true, false) -> 2;
-get_penalty(_dontcare, false, _) -> 20.
 
-	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% REPLACE TURN AND DISTANCE PENALTY? %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+position_penalty(_, _, 0) ->
+	0;
+position_penalty(true, true , Distance) ->
+	Distance;
+
+position_penalty(true, false , Distance) ->
+	?NUM_FLOORS - Distance + 10; %TURN PENALTY = 10, DEFINE?
+
+position_penalty(false, true, Distance) ->
+	?NUM_FLOORS - Distance + 2*10; %TURN PENALTY = 10, DEFINE?
+
+position_penalty(false, false , Distance) ->
+	Distance + 10. %TURN PENALTY = 10, DEFINE?
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 order_type_to_int(down) -> -1; %Consider merging with function below
 order_type_to_int(inner) -> 0;
