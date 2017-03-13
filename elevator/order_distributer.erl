@@ -34,8 +34,11 @@ update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator
 			update_my_next(Rest, {Best_penalty, _Best_order}, Elevator_floor, Elevator_direction_int)
 	end.
 
-
-
+distribute_order({order, Floor, inner}) ->
+	Order = #order{floor=Floor,type = inner},
+	queue_module:add_to_queue(node(),Order),
+	io:fwrite("Gotten in distribute_order with type inner ~n", []),
+	node();
 distribute_order(Order) -> 
 	Memberlist = [node()|nodes()],
 	Penalties = get_penalties(Memberlist,[],Order),
