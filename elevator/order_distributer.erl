@@ -71,14 +71,21 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	Elevator_floor = state_storage:get_last_floor(Member),
 	Elevator_direction = state_storage:get_direction(Member),
 	Elevator_direction_int = direction_to_int(Elevator_direction),
+	Order_type_int = order_type_to_int(Order#order.type),
 
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
-	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
-	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
+	Moving_towards_pling = compare(sign(Relative_position), sign(Elevator_direction_int)),	% True if elevator moves towards pling
+	Equal_direction = compare(Order_type_int, Elevator_direction_int), 		% True if elevator and signal same direction
 	Distance = abs(Relative_position),
 	
 	Penalty = state_penalty(State) + position_penalty(Moving_towards_pling,Equal_direction,Distance),
 	get_penalties(Rest,[Penalty|Penalties], Order).
+
+
+compare(_X, 0) -> true;
+compare(X, Y) -> X == Y.
+
+
 
 
 state_penalty(init) -> 1000;

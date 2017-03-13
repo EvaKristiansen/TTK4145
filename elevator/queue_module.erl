@@ -178,8 +178,8 @@ remove_from_queue(false, ElevatorID, Floor) ->
 
 
 
- get_queue_set(ElevatorID, Position) ->
-	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Position)}},
+ get_queue_set(ElevatorID, Preposition) ->
+	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Preposition)}},
 	receive 
 		{ok, Set} ->
 			ok
