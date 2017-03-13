@@ -81,10 +81,13 @@ elevator_monitor() ->
 
 add_to_queue_on_nodes(Elevator, Order) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {add_order, Elevator, Order} end, nodes()).
+
 send_remote_state_update(State) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_state, node(), State} end, nodes()).
+
 send_remote_direction_update(Direction) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_direction, node(), Direction} end, nodes()).
+
 send_remote_floor_update(Floor) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_floor, node(), Floor} end, nodes()).
 
@@ -127,6 +130,7 @@ driver_manager() ->
 
 		{go_to_order, Direction} ->
 			driver:set_motor_direction(Direction),
+			io:fwrite("Setting direction to: ~w ~n", [Direction]),
 			?STATE_STORAGE_PID ! {set_direction, {node(), Direction}},
 			send_remote_direction_update(Direction),
 			driver_manager()
