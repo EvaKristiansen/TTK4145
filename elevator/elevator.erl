@@ -25,7 +25,7 @@ start() ->
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener() end)),
 	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
 	spawn(fun() -> button_light_manager(driver:create_buttons([],0)) end),
-	spawn(fun() -> storage_maintainer({0,0,0}) end), %EVA
+	spawn(fun() -> node_watcher({0,0,0}) end), 
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
 	spawn(fun()-> order_poller() end).
@@ -58,8 +58,6 @@ elevator_monitor() ->
 		{new_destination, stop} ->
 			Floor = state_storage:get_last_floor(node()),
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
-
-			%%%%%%%%%%%%%%%%%%%%%%%%% CURRENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
 
 			send_remote_queue_removal(Floor),
@@ -71,17 +69,10 @@ elevator_monitor() ->
 			?DRIVER_MANAGER_PID  ! {go_to_order, Direction},
 			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
 			send_remote_state_update(moving), 
-			elevator_monitor();
-
-		{elevator_dropout, ElevatorID} ->
-			lists:foreach(fun(Order) -> 
-				order_distributer:distribute_order(Order) % Funksjonen returnerer Winner, men vi distribuerer den ikke
-			end,
-			queue_module:get_outer_queue(ElevatorID))
+			elevator_monitor()
 	end.
 
 add_to_queue_on_nodes(Elevator, Order) ->
-	io:fwrite("Broadcasted orders to ~w ~n", [nodes()]),
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {add_order, Elevator, Order} end, nodes()).
 
 send_remote_state_update(State) ->
@@ -100,7 +91,6 @@ send_remote_queue_removal(Floor) ->
 remote_listener() -> % TODO
 	receive
 		{add_order, Elevator, Order} ->
-			io:fwrite("Received order from elevator ~w ~n", [Order]),
 			queue_module:add_to_queue(Elevator, Order),
 			remote_listener();
 
@@ -197,20 +187,18 @@ update_button_light(Button)-> %Not happy with name, but tired, renamed from set_
 	Toset = queue_module:is_order(button_to_order(Button)),
 	set_button (Toset, Button). % Todo
 
-
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
 set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
 
-
-
-storage_maintainer({0,0,0}) ->
+node_watcher({0,0,0}) ->
 	global_group:monitor_nodes(true),
-	storage_maintainer({0,0,1});
+	node_watcher({0,0,1});
 
-storage_maintainer(Timestamp) ->
+node_watcher(Timestamp) ->
 	receive 
-		{nodedown, _Node} ->
-			storage_maintainer(Timestamp);
+		{nodedown, Node} ->
+			order_distributer:merge_from_elevator(Node),
+			node_watcher(Timestamp);
 		{nodeup, Node} ->
 			io:fwrite("NODE UP : ~w ~n", [Node]),
 			queue_module:update_queue(Node),
@@ -220,9 +208,7 @@ storage_maintainer(Timestamp) ->
 		%EVA: DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
 		ok
 	end,
-
-	?MODULE:storage_maintainer({0,0,1}).
-
+	node_watcher({0,0,1}).
 
 %%%%%%%%%%%%%%% HELPER FUNCTIONS; MAY BE REMOVABLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
 direction(0) -> stop;
@@ -231,4 +217,3 @@ direction(Relative_position) when Relative_position < 0 -> down.
 
 button_to_order(Button) ->
 	#order{floor= Button#button.floor, type = Button#button.type}.
-

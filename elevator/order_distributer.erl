@@ -53,7 +53,7 @@ choose_winner(MemberList, Penalties, Best_so_far) ->
 
 choose_winner(Member_head, Member_rest, Penalties, {Lowest_value, Member}) ->
 	[Penalty | Penalties_rest] = Penalties,
-	case Penalty < Lowest_value of % Har tenkt på å erstatte denne, men da får vi 7 argument? 
+	case Penalty < Lowest_value of 
 		true ->
 			choose_winner(Member_rest, Penalties_rest, {Penalty, Member_head});
 		false ->
@@ -128,3 +128,10 @@ direction_to_int(down) -> -1;
 direction_to_int(stop) -> 0;
 direction_to_int(up) -> 1.
 
+merge_from_elevator(ElevatorID)->
+	Queue = ordsets:to_list(queue_module:get_queue_set(ElevatorID,outer)),
+	io:fwrite("Outer queue of crashing node: ~w ~n", [Queue]),
+	io:fwrite("My outer queue before the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
+	lists:foreach(fun(Order) -> order_distributer:distribute_order(Order) end, Queue),
+	io:fwrite("~n~n~n", []),
+	io:fwrite("My outer queue after the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]).

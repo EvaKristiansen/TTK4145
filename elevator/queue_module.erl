@@ -175,9 +175,6 @@ remove_from_queue(false, ElevatorID, Floor) ->
 	?QUEUE_PID ! {remove, {OutKey, Order3}},
 	ok.
 
-
-
-
  get_queue_set(ElevatorID, Preposition) ->
 	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Preposition)}},
 	receive 
