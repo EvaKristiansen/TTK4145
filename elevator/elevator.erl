@@ -117,8 +117,9 @@ remote_listener() -> % TODO
 			remote_listener();
 
 		{remove_from_queue, {Elevator, Floor}} ->
-			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() )
-			
+			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() ),
+			remote_listener()
+
 	end.
 
 driver_manager() ->
