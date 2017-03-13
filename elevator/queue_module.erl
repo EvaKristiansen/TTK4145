@@ -157,7 +157,7 @@ is_floor_in_queue(ElevatorID, Floor) ->
 		end,
 	Value1 or Value2 or Value3.
 
-remove_from_queue(ElevatorID, Floor) ->
+remove_from_queue(true, ElevatorID, Floor) ->
 	InKey = create_key(ElevatorID, inner),
 	OutKey = create_key(ElevatorID, outer),
 	Order1  = #order{floor = Floor, type = down},
@@ -166,7 +166,17 @@ remove_from_queue(ElevatorID, Floor) ->
 	?QUEUE_PID ! {remove, {OutKey, Order1}},
 	?QUEUE_PID ! {remove, {InKey, Order2}},
 	?QUEUE_PID ! {remove, {OutKey, Order3}},
+	ok;
+remove_from_queue(false, ElevatorID, Floor) ->
+	OutKey = create_key(ElevatorID, outer),
+	Order1  = #order{floor = Floor, type = down},
+	Order3  = #order{floor = Floor, type = up},
+	?QUEUE_PID ! {remove, {OutKey, Order1}},
+	?QUEUE_PID ! {remove, {OutKey, Order3}},
 	ok.
+
+
+
 
  get_queue_set(ElevatorID, Position) ->
 	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Position)}},

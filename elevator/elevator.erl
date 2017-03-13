@@ -28,9 +28,7 @@ start() ->
 	spawn(fun() -> storage_maintainer({0,0,0}) end), %EVA
 	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 	send_remote_state_update(idle), 
-	spawn(fun()-> order_poller() end). %TODO shouldn't it be spawned? Is now spawned, not tested
-	% TODO, was order_poller() before the new function
-
+	spawn(fun()-> order_poller() end).
 
 %The function that handles button presses should do as little as possible.....
 elevator_monitor() ->
@@ -40,8 +38,7 @@ elevator_monitor() ->
 			driver:set_floor_indicator(Floor),
 			?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
 			send_remote_floor_update(Floor), 
-			Stop_for_order = queue_module:is_floor_in_queue(node(),Floor),
-			respond_to_new_floor(Stop_for_order, Floor),% argument (Stop_for_order, Floor)
+			respond_to_new_floor(Floor == queue_module:get_my_next(), Floor),% argument (Stop_for_order, Floor)
 			elevator_monitor();
 
 		{button_pressed, Floor, ButtonType} ->
@@ -61,7 +58,11 @@ elevator_monitor() ->
 		{new_destination, stop} ->
 			Floor = state_storage:get_last_floor(node()),
 			?DRIVER_MANAGER_PID  ! {stop_at_floor,Floor},
-			queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
+			
+			%%%%%%%%%%%%%%%%%%%%%%%%% CURRENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
+
+			send_remote_queue_removal(Floor),
 			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
 			send_remote_state_update(door_open), 
 			elevator_monitor();
@@ -92,6 +93,10 @@ send_remote_direction_update(Direction) ->
 send_remote_floor_update(Floor) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {update_floor, node(), Floor} end, nodes()).
 
+send_remote_queue_removal(Floor) ->
+	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {remove_from_queue, {node(), Floor} end, nodes()).
+
+
 remote_listener() -> % TODO
 	receive
 		{add_order, Elevator, Order} ->
@@ -109,7 +114,10 @@ remote_listener() -> % TODO
 
 		{update_direction, Elevator, Direction} ->
 			state_storage:update_direction(Elevator, Direction),
-			remote_listener()
+			remote_listener();
+
+		{remove_from_queue, {Elevator, Floor}} ->
+			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() ).
 	end.
 
 driver_manager() ->
@@ -158,7 +166,11 @@ order_poller(Next_floor) -> 				%Checks if my elevator has place it should be, w
 respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
 	%STOP, Remove from order, Send stopped to fsm, open_door
 	?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
-	queue_module:remove_from_queue(node(), Floor), %TODO Bør ikke denne funksjonen fjerne for alle heiser, ikkebare node?
+
+	%%%%%%%%%%%%%%%%%%%%%%%%% CURRENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
+	send_remote_queue_removal(Floor),
+
 	?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
 	send_remote_state_update(door_open);
 
