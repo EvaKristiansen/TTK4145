@@ -108,8 +108,12 @@ remote_listener() -> % TODO
 
 		{remove_from_queue, {Elevator, Floor}} ->
 			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() ),
-			remote_listener()
+			remote_listener();
 
+		{merge_to_inner_queue, Remote_queue} ->	%Remote_queue is ordset
+			Original_queue = queue_module:get_queue_set(node(),inner),
+			New_queue = ordsets:union(Original_queue,Remote_queue),
+			queue_module:replace_queue(node(),New_queue)
 	end.
 
 driver_manager() ->
@@ -202,7 +206,9 @@ node_watcher(Timestamp) ->
 		{nodeup, Node} ->
 			io:fwrite("NODE UP : ~w ~n", [Node]),
 			queue_module:update_queue(Node),
-			state_storage:update_storage(Node)
+			state_storage:update_storage(Node),
+			Node_queue = queue_module:get_queue_set(Node,inner),
+			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 
 	after 30000 ->
 		%EVA: DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!

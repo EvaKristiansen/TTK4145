@@ -72,7 +72,13 @@ queue_storage_loop(Queues, My_next) -> %TODO: WHAT IS MEH!?
 			queue_storage_loop(Queues, My_next);
 
 		{set_my_next, Next_value} -> 
-			queue_storage_loop(Queues, Next_value)
+			queue_storage_loop(Queues, Next_value);
+
+		{replace, {Key, New_queue}} ->
+			Updated_queues = dict:append(Key, New_queue, dict:erase(Key, Queues)),
+			io:fwrite("My old inner queue was: ~w ~n ", [dict:find(Key,Queues)]),
+			io:fwrite("My new inner queue is: ~w ~n ", [Updated_queues]),
+			queue_storage_loop(Updated_queues, My_next)
 
 	end.
 
@@ -182,3 +188,7 @@ remove_from_queue(false, ElevatorID, Floor) ->
 			ok
 	end,
 	Set.
+
+replace_queue(ElevatorID, New_queue) -> 
+	Key = create_key(ElevatorID, inner),
+	?QUEUE_PID ! {replace, {Key, New_queue}}.
