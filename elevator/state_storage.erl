@@ -67,7 +67,6 @@ storage_loop(States,Last_known_floors,Directions) ->
 			Known_information = dict:find(New_member, States),
 			{Updated_states, Updated_floors, Updated_directions} = add_member_if_unkown(Known_information, New_member, {States, Last_known_floors, Directions}), % TODO REPLACEMET
 			storage_loop(Updated_states, Updated_floors, Updated_directions)
-
 	end.
 
 add_member_if_unkown({ok, _}, New_member, {States, Last_known_floors, Directions}) ->
@@ -77,7 +76,7 @@ add_member_if_unkown({ok, _}, New_member, {States, Last_known_floors, Directions
 add_member_if_unkown(error, New_member, {States, Last_known_floors, Directions}) ->
 	Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
 	Updated_last_known_floors = dict:append(New_member, -1 ,Last_known_floors),
-	Updated_directions = dict:append(New_member, 0, Directions),
+	Updated_directions = dict:append(New_member, stop, Directions),
 	{Updated_states, Updated_last_known_floors, Updated_directions}.
 
 
@@ -111,5 +110,5 @@ update_state(ElevatorID, New_state) ->
 update_floor(ElevatorID, New_floor) ->
 	?STATE_STORAGE_PID ! {set_last_known_floor, {ElevatorID, New_floor}}.
 
-updated_direction(ElevatorID, New_direction) ->
+update_direction(ElevatorID, New_direction) ->
 	?STATE_STORAGE_PID ! {set_direction, {ElevatorID, New_direction}}.
