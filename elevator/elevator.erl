@@ -5,6 +5,7 @@
 - define(STATE_STORAGE_PID, ss).
 - define(DRIVER_MANAGER_PID, dmpid).
 - define(NODE_WATCHER_PID, nwpid).
+- define(TIMER, tmpid).
 - record(order,{floor,type}).
  -record(button,{floor,type,state = 0}).
 - compile(export_all).
@@ -79,8 +80,9 @@ elevator_monitor() ->
 			set_my_local_and_remote_info("state", stuck),
 			receive
 				{new_floor_reached,Floor} ->
-					self() ! {new_floor_reached,Floor}
-			end  
+					?ELEVATOR_MONITOR_PID ! {new_floor_reached,Floor}
+			end,
+			elevator_monitor() 
 	end.
 
 go_to_destination(stop) ->
@@ -98,17 +100,14 @@ respond_to_new_floor(Floor) ->
 respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
 	?DRIVER_MANAGER_PID ! {stop_at_floor,Floor};
 
-
 respond_to_new_floor(false, 0) -> 
 	respond_to_new_floor(false, 3);
 
 respond_to_new_floor(false, 3) -> 
-	?DRIVER_MANAGER_PID  ! {at_end_floor},
-	set_my_local_and_remote_info("state", idle),
-	spawn(fun()-> order_poller() end);
+	?DRIVER_MANAGER_PID  ! {at_end_floor};
+
 respond_to_new_floor(false, _) ->
 	ok.
-
 
 driver_manager_init() ->
 	receive
@@ -118,6 +117,7 @@ driver_manager_init() ->
 driver_manager() ->
 	receive
 		{stop_at_floor,Floor} ->
+			?TIMER ! stop,
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
 
@@ -134,26 +134,30 @@ driver_manager() ->
 			driver_manager();
 
 		{at_end_floor} ->
+			?TIMER ! stop,
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
+			set_my_local_and_remote_info("state", idle),
+			spawn(fun()-> order_poller() end),
+
 			driver_manager();
 
 		{go_to_destination, Direction} ->
 			driver:set_motor_direction(Direction),
+
 			set_my_local_and_remote_info("direction", Direction),
 			set_my_local_and_remote_info("state", moving),
+			register(?TIMER , spawn(fun() -> delay_timer() end)),
 
 			driver_manager()
 	end.
 
-
-
 remote_listener_init() ->
 	receive 
 		init_complete ->
-
 			remote_listener()
 	end.
+
 remote_listener() ->
 	receive
 		{add_order, {Elevator, Order}} ->
@@ -231,11 +235,16 @@ node_watcher(Timestamp) ->
 	node_watcher({0,0,1}).
 
 delay_timer() ->
+	io:fwrite("delay_timer starting ~n", []),
 	receive
-		ok ->
+		stop ->
+			io:fwrite("delay_timer stopped~n", []),
 			ok
+
 	after 8000 ->
-		?ELEVATOR_MONITOR_PID ! {stuck}
+		io:fwrite("I AM STUCK!! Help me out, my name is: ~w ~n", [node()]),
+		?ELEVATOR_MONITOR_PID ! {stuck},
+		delay_timer()
 	end.
 
 button_light_manager(Buttons) ->
