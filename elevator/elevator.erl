@@ -34,7 +34,6 @@ start() ->
 elevator_monitor() ->
 	receive
 		{new_floor_reached,Floor} ->
-
 			driver:set_floor_indicator(Floor),
 			?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
 			send_remote_floor_update(Floor), 
@@ -112,8 +111,15 @@ remote_listener() -> % TODO
 
 		{merge_to_inner_queue, Remote_queue} ->	%Remote_queue is ordset
 			Original_queue = queue_module:get_queue_set(node(),inner),
+			io:fwrite("My queue before merge message was: ~w ~n ", [Original_queue]),
+			io:fwrite("The queue I received was: ~w ~n ", [Remote_queue]),
 			New_queue = ordsets:union(Original_queue,Remote_queue),
+			io:fwrite("My new queue is : ~w ~n ", [New_queue]),
 			queue_module:replace_queue(node(),New_queue)
+
+			%UFERDIG: TIL CONSISTENCY CHECKS%
+		%{outer_queue_request, Sender} ->
+			%Outer_queue_list = 
 	end.
 
 driver_manager() ->
@@ -163,7 +169,6 @@ respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
 	%STOP, Remove from order, Send stopped to fsm, open_door
 	?DRIVER_MANAGER_PID ! {stop_at_floor,Floor},
 
-	%%%%%%%%%%%%%%%%%%%%%%%%% CURRENT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
 	send_remote_queue_removal(Floor),
 
@@ -187,9 +192,9 @@ button_light_manager(Buttons) ->
 	timer:sleep(50),
 	button_light_manager(Buttons).
 
-update_button_light(Button)-> %Not happy with name, but tired, renamed from set_button
+update_button_light(Button)->
 	Toset = queue_module:is_order(button_to_order(Button)),
-	set_button (Toset, Button). % Todo
+	set_button (Toset, Button). 
 
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
 set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
