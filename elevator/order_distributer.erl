@@ -22,8 +22,8 @@ update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator
 	[Order | Rest] = Order_list,
 
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
-	Moving_towards_pling = sign(Relative_position) == sign(Elevator_direction_int),	% True if elevator moves towards pling
-	Equal_direction = (order_type_to_int(Order#order.type) == Elevator_direction_int), 		% True if elevator and signal same direction
+	Moving_towards_pling = compare(sign(Relative_position), sign(Elevator_direction_int)),	% True if elevator moves towards pling
+	Equal_direction = compare(order_type_to_int(Order#order.type), Elevator_direction_int), 		% True if elevator and signal same direction
 	Distance = abs(Relative_position),
 
 	Penalty = position_penalty(Moving_towards_pling,Equal_direction,Distance),
@@ -84,9 +84,6 @@ get_penalty(Member, Rest, Penalties, Order) ->
 
 compare(_X, 0) -> true;
 compare(X, Y) -> X == Y.
-
-
-
 
 state_penalty(init) -> 1000;
 state_penalty(unknown) -> 1000; %TODO evaluer denne

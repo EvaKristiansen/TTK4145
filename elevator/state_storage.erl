@@ -107,14 +107,6 @@ get_direction(ElevatorID) ->
 update_storage(ElevatorID) ->
 	?STATE_STORAGE_PID ! {update, ElevatorID}.
 
-update_state(ElevatorID, New_state) ->
-	?STATE_STORAGE_PID ! {set_state, {ElevatorID, New_state}}.
-
-update_floor(ElevatorID, New_floor) ->
-	?STATE_STORAGE_PID ! {set_last_known_floor, {ElevatorID, New_floor}}.
-
-update_direction(ElevatorID, New_direction) ->
-	?STATE_STORAGE_PID ! {set_direction, {ElevatorID, New_direction}}.
 
 set_information(Command, {ElevatorID, Value}) ->
 	?STATE_STORAGE_PID ! {Command, {ElevatorID, Value}}.
