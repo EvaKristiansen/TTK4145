@@ -51,11 +51,8 @@ start() ->
 	lists:foreach(fun(Node) -> {?NODE_WATCHER_PID, Node} ! init_complete end, nodes()),
 
 	set_my_local_and_remote_info("state", idle),
-%	state_storage:set_information(set_state, {node(), idle}),
-%	send_to_connected_nodes(update_state, {node(), idle}),
 	spawn(fun()-> order_poller() end).
 
-%The function that handles button presses should do as little as possible.....
 elevator_monitor_init() ->
 	receive
 		init_complete ->
@@ -65,7 +62,6 @@ elevator_monitor_init() ->
 elevator_monitor() ->
 	receive
 		{new_floor_reached,Floor} ->
-			
 			respond_to_new_floor(Floor),
 			elevator_monitor();
 
@@ -76,23 +72,27 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{new_destination, Direction} ->
-			
 			go_to_destination(Direction),
-			elevator_monitor()
+			elevator_monitor();
+
+		{stuck} ->
+			set_my_local_and_remote_info("state", stuck),
+			receive
+				{new_floor_reached,Floor} ->
+					self() ! {new_floor_reached,Floor}
+			end  
 	end.
 
 go_to_destination(stop) ->
 	Floor = state_storage:get_last_floor(node()),
 	respond_to_new_floor(true, Floor);
+
 go_to_destination(Direction) ->
 	?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}.
-
 
 respond_to_new_floor(Floor) ->
 	driver:set_floor_indicator(Floor),
 	set_my_local_and_remote_info("last_known_floor", Floor),
-%	?STATE_STORAGE_PID ! {set_last_known_floor, {node(), Floor}},
-%	send_to_connected_nodes(update_floor, {node(), Floor}),
 	respond_to_new_floor(Floor == queue_module:get_my_next(), Floor).
 
 respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
@@ -104,16 +104,10 @@ respond_to_new_floor(false, 0) ->
 
 respond_to_new_floor(false, 3) -> 
 	?DRIVER_MANAGER_PID  ! {at_end_floor},
-
 	set_my_local_and_remote_info("state", idle),
-%	?STATE_STORAGE_PID ! {set_state, {node(), idle}},
-%	send_to_connected_nodes(update_state, {node(), idle}), 
-
 	spawn(fun()-> order_poller() end);
 respond_to_new_floor(false, _) ->
 	ok.
-
-
 
 
 driver_manager_init() ->
@@ -126,24 +120,15 @@ driver_manager() ->
 		{stop_at_floor,Floor} ->
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
-%			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
-%			send_to_connected_nodes(update_direction, {node(), stop}),
 
-%			driver:reset_button_lights(Floor),
 			driver:set_door_open_lamp(on),
 			set_my_local_and_remote_info("state", door_open),
-%			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
-%			send_to_connected_nodes(update_state, {node(), door_open});
-
 			timer:sleep(3000),
-
 			driver:set_door_open_lamp(off),
+
 			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
 			send_to_connected_nodes(remove_from_queue, {node(), Floor}),
 			set_my_local_and_remote_info("state", idle),
-
-%			?STATE_STORAGE_PID ! {set_state, {node(), idle}},
-%			send_to_connected_nodes(update_state, {node(), idle}),
 			spawn(fun()-> order_poller() end),
 			
 			driver_manager();
@@ -151,25 +136,16 @@ driver_manager() ->
 		{at_end_floor} ->
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
-%			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
-%			send_to_connected_nodes(update_direction, {node(), stop}),
 			driver_manager();
 
 		{go_to_destination, Direction} ->
 			driver:set_motor_direction(Direction),
 			set_my_local_and_remote_info("direction", Direction),
 			set_my_local_and_remote_info("state", moving),
-%			?STATE_STORAGE_PID ! {set_direction, {node(), Direction}},
-%			send_to_connected_nodes(update_direction, {node(), Direction}),
-%			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
-%			send_to_connected_nodes(update_state, {node(), moving}),
+
 			driver_manager()
 	end.
 
-%%%%%%%%%%%%%%%%%%% TODO %%%%%%%%%%%%%%%%%%%%
-set_my_local_and_remote_info(Info_type, Message) ->
-	state_storage:set_information(list_to_atom("set_" ++ Info_type), {node(), Message}),
-	send_to_connected_nodes(list_to_atom("update_" ++ Info_type), {node(), Message}).
 
 
 remote_listener_init() ->
@@ -182,6 +158,11 @@ remote_listener() ->
 	receive
 		{add_order, {Elevator, Order}} ->
 			queue_module:add_to_queue(Elevator, Order),
+			remote_listener();
+
+		{update_state, {Elevator, stuck}} ->
+			state_storage:set_information(set_state, {Elevator, stuck}),
+			order_distributer:merge_from_elevator(Elevator),
 			remote_listener();
 
 		{update_state, {Elevator, State}} ->
@@ -222,11 +203,7 @@ order_poller(none) -> % No orders to take, wait and check again.
 order_poller(Next_floor) -> 				%Checks if my elevator has place it should be, when in state idle
 	Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
 	Relative_position = Next_floor - Elevator_floor,
-	%io:fwrite("Relative position is: ~w ~n",[Relative_position]), %DEBUG
 	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}.
-
-
-
 
 node_watcher({0,0,0}) ->
 	global_group:monitor_nodes(true),
@@ -253,6 +230,13 @@ node_watcher(Timestamp) ->
 	end,
 	node_watcher({0,0,1}).
 
+delay_timer() ->
+	receive
+		ok ->
+			ok
+	after 80000 ->
+		?ELEVATOR_MONITOR_PID ! {stuck}
+	end.
 
 button_light_manager(Buttons) ->
 	lists:foreach(fun(Button) -> update_button_light(Button) end,Buttons),
@@ -273,9 +257,6 @@ toset({button, Floor, Type, _State}) ->
 	Order = #order{floor= Floor, type = Type},
 	queue_module:is_order(Order).
 
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%  HELPER FUNCTIONS  %%%%%%%%%%%%%%%%%%%%%%%%%%%
 direction(0) -> stop;
 direction(Relative_position) when Relative_position > 0 -> up;
@@ -283,3 +264,7 @@ direction(Relative_position) when Relative_position < 0 -> down.
 
 send_to_connected_nodes(Command, Message) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {Command, Message} end, nodes()).
+
+set_my_local_and_remote_info(Info_type, Message) ->
+	state_storage:set_information(list_to_atom("set_" ++ Info_type), {node(), Message}),
+	send_to_connected_nodes(list_to_atom("update_" ++ Info_type), {node(), Message}).
