@@ -48,7 +48,7 @@ start() ->
 	?REMOTE_LISTENER_PID ! init_complete,
 	?DRIVER_MANAGER_PID ! init_complete,
 
-	lists:foreach(fun(Node) -> {?NODE_WATCHER_PID, Node} ! init_complete end, nodes()).
+	lists:foreach(fun(Node) -> {?NODE_WATCHER_PID, Node} ! init_complete end, nodes()),
 
 	state_storage:update_state(node(), idle),
 	send_to_connected_nodes(update_state, {node(), idle}),
