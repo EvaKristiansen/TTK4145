@@ -25,8 +25,8 @@ update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator
 	Moving_towards_pling = compare(sign(Relative_position), sign(Elevator_direction_int)),	% True if elevator moves towards pling
 	Equal_direction = compare(order_type_to_int(Order#order.type), Elevator_direction_int), 		% True if elevator and signal same direction
 	Distance = abs(Relative_position),
-
-	Penalty = position_penalty(Moving_towards_pling,Equal_direction,Distance),
+	Order_type_int = order_type_to_int(Oder#order.type), % NEW
+	Penalty = position_penalty(Moving_towards_pling,Equal_direction,Distance, Order_type_int), % NEW
 	case (Penalty < Best_penalty) of 
 		true ->
 			update_my_next(Rest, {Penalty,Order}, Elevator_floor, Elevator_direction_int);
@@ -78,7 +78,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	Equal_direction = compare(Order_type_int, Elevator_direction_int), 		% True if elevator and signal same direction
 	Distance = abs(Relative_position),
 	
-	Penalty = state_penalty(State) + position_penalty(Moving_towards_pling,Equal_direction,Distance),
+	Penalty = state_penalty(State) + position_penalty(Moving_towards_pling,Equal_direction,Distance, Order_type_int),
 	get_penalties(Rest,Penalties++[Penalty],Order).
 
 
@@ -100,20 +100,40 @@ sign(Argument) ->
 return_sign(true) -> 1;
 return_sign(false) -> -1.
 
+%%%%%%%%%%%%%%%%%% FORSLAG TIL NY FUNKSJON: %%%%%%%%%%%%%%%%%%%%%
+%%%% TYPE: 0 | 1 | -1 |
+position_penalty(Moving_towards_pling, Relative_position, Distance, Type_int), 
 
-position_penalty(_, _, 0) ->
-	0;
-position_penalty(true, true , Distance) ->
+position_penalty(true, _Relative_position, Distance, 0) ->
 	Distance;
 
-position_penalty(true, false , Distance) ->
-	?NUM_FLOORS - Distance + 10; %TURN PENALTY = 10, DEFINE?
+position_penalty(false, _Relative_position, Distance, 0) ->
+	Distance + 10;
+position_penalty(true, false , Distance, _Type_int) ->
+	(?NUM_FLOORS - Distance) + 10; %TURN PENALTY = 10, DEFINE?
 
-position_penalty(false, true, Distance) ->
-	?NUM_FLOORS - Distance + 2*10; %TURN PENALTY = 10, DEFINE?
+position_penalty(false, true, Distance, _Type_int) ->
+	(?NUM_FLOORS - Distance) + 2*10; %TURN PENALTY = 10, DEFINE?
 
-position_penalty(false, false , Distance) ->
-	Distance + 10. %TURN PENALTY = 10, DEFINE?
+position_penalty(false, false , Distance, _Type_int) -> % HER SKAL DET VÆRE Distance + ?NUM_FLOORS TODO
+	(?NUM_FLOOR + Distance) + 10. %TURN PENALTY = 10, DEFINE?
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%% SEMI WORKING CODE: 
+%position_penalty(_, _, 0) -> % HER ER DET NOE MUFFENS
+%	0;
+%
+%position_penalty(true, true , Distance) ->
+%	Distance;
+%
+%position_penalty(true, false , Distance) ->
+%	(?NUM_FLOORS - Distance) + 10; %TURN PENALTY = 10, DEFINE?
+%
+%position_penalty(false, true, Distance) ->
+%	(?NUM_FLOORS - Distance) + 2*10; %TURN PENALTY = 10, DEFINE?
+%
+%position_penalty(false, false , Distance) -> % HER SKAL DET VÆRE Distance + ?NUM_FLOORS TODO
+%	(?NUM_FLOOR + Distance) + 10. %TURN PENALTY = 10, DEFINE?
 
 
 
