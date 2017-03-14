@@ -16,17 +16,17 @@ start(Init_listener, Sensor_monitor_pid) -> %Sensor monitor pid as argument for 
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
     init(),
-    Floor = go_to_defined_floor(self()),
+    Floor = go_to_defined_floor(),
 
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
     Buttons = create_buttons([],0),
     spawn(fun() -> sensor_poller(Sensor_monitor_pid, Floor, Buttons) end),
     Init_listener ! {driver_init_complete, Floor}.
  
-go_to_defined_floor(Pid) ->
+go_to_defined_floor() ->
 	set_motor_direction(down),
 	case Floor = get_floor_sensor_signal() of 
-		255 -> go_to_defined_floor(Pid);
+		255 -> go_to_defined_floor();
 		_ -> 
 			set_motor_direction(stop),
 			set_floor_indicator(Floor),
