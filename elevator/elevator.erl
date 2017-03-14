@@ -234,7 +234,7 @@ delay_timer() ->
 	receive
 		ok ->
 			ok
-	after 80000 ->
+	after 8000 ->
 		?ELEVATOR_MONITOR_PID ! {stuck}
 	end.
 
