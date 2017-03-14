@@ -183,7 +183,13 @@ remove_from_queue(false, ElevatorID, Floor) ->
 		{ok, Set} ->
 			ok
 	end,
-	Set.
+	Set,
+	case ordsets:is_set(Set) of
+		true ->
+			Set;
+		false ->
+			ordsets:new()
+	end.
 
 replace_queue(ElevatorID, New_queue) -> 
 	Key = create_key(ElevatorID, inner),
