@@ -91,6 +91,7 @@ go_to_destination(stop) ->
 	respond_to_new_floor(true, Floor);
 
 go_to_destination(Direction) ->
+	io:fwrite("Going to destination at direction ~w ~n", [Direction]),
 	?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}.
 
 respond_to_new_floor(Floor) ->
