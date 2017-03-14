@@ -96,7 +96,6 @@ respond_to_new_floor(Floor) ->
 	respond_to_new_floor(Floor == queue_module:get_my_next(), Floor).
 
 respond_to_new_floor(true, Floor) ->% argument (Stop_for_order, Floor)
-	
 	?DRIVER_MANAGER_PID ! {stop_at_floor,Floor};
 
 
@@ -130,19 +129,19 @@ driver_manager() ->
 %			?STATE_STORAGE_PID ! {set_direction, {node(), stop}},
 %			send_to_connected_nodes(update_direction, {node(), stop}),
 
-			driver:reset_button_lights(Floor),
+%			driver:reset_button_lights(Floor),
 			driver:set_door_open_lamp(on),
 			set_my_local_and_remote_info("state", door_open),
 %			?STATE_STORAGE_PID ! {set_state, {node(), door_open}},
 %			send_to_connected_nodes(update_state, {node(), door_open});
 
-			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
-			send_to_connected_nodes(remove_from_queue, {node(), Floor}),
-
 			timer:sleep(3000),
 
 			driver:set_door_open_lamp(off),
+			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
+			send_to_connected_nodes(remove_from_queue, {node(), Floor}),
 			set_my_local_and_remote_info("state", idle),
+
 %			?STATE_STORAGE_PID ! {set_state, {node(), idle}},
 %			send_to_connected_nodes(update_state, {node(), idle}),
 			spawn(fun()-> order_poller() end),
@@ -159,7 +158,7 @@ driver_manager() ->
 		{go_to_destination, Direction} ->
 			driver:set_motor_direction(Direction),
 			set_my_local_and_remote_info("direction", Direction),
-			set_my_local_and_remote_info("state", moving);
+			set_my_local_and_remote_info("state", moving),
 %			?STATE_STORAGE_PID ! {set_direction, {node(), Direction}},
 %			send_to_connected_nodes(update_direction, {node(), Direction}),
 %			?STATE_STORAGE_PID ! {set_state, {node(), moving}},
@@ -169,7 +168,7 @@ driver_manager() ->
 
 %%%%%%%%%%%%%%%%%%% TODO %%%%%%%%%%%%%%%%%%%%
 set_my_local_and_remote_info(Info_type, Message) ->
-	state_storage:set_information(list_to_atom("set_" ++ Info_type), node(), Message),
+	state_storage:set_information(list_to_atom("set_" ++ Info_type), {node(), Message}),
 	send_to_connected_nodes(list_to_atom("update_" ++ Info_type), {node(), Message}).
 
 
