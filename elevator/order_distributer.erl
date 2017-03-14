@@ -79,7 +79,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	Distance = abs(Relative_position),
 	
 	Penalty = state_penalty(State) + position_penalty(Moving_towards_pling,Equal_direction,Distance),
-	get_penalties(Rest,[Penalty|Penalties], Order).
+	get_penalties(Rest,Penalties++[Penalty],Order).
 
 
 compare(_X, 0) -> true;
@@ -133,6 +133,6 @@ merge_from_elevator(ElevatorID)->
 	io:fwrite("~n~n~n", []),
 	io:fwrite("Outer queue of crashing node: ~w ~n", [Queue]),
 	io:fwrite("My outer queue before the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
-	lists:foreach(fun(Order) -> order_distributer:distribute_order(Order) end, Queue),
+	lists:foreach(fun(Order) -> distribute_order(Order) end, Queue),
 	io:fwrite("My outer queue after the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
 	io:fwrite("~n~n~n", []).

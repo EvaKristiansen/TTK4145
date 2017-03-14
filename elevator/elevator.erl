@@ -236,14 +236,11 @@ node_watcher(Timestamp) ->
 	node_watcher({0,0,1}).
 
 delay_timer() ->
-	io:fwrite("delay_timer starting ~n", []),
 	receive
 		stop ->
-			io:fwrite("delay_timer stopped~n", []),
 			ok
 
 	after 8000 ->
-		io:fwrite("I AM STUCK!! Help me out, my name is: ~w ~n", [node()]),
 		?ELEVATOR_MONITOR_PID ! {stuck},
 		delay_timer()
 	end.
