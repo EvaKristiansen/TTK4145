@@ -4,6 +4,7 @@
 - define(REMOTE_LISTENER_PID, rlpid).
 - define(STATE_STORAGE_PID, ss).
 - define(DRIVER_MANAGER_PID, dmpid).
+- define(NODE_WATCHER_PID, nwpid).
 - record(order,{floor,type}).
  -record(button,{floor,type,state = 0}).
 - compile(export_all).
@@ -41,12 +42,13 @@ start() ->
 
 
 	spawn(fun() -> button_light_manager(driver:create_buttons([],0)) end),
-	spawn(fun() -> node_watcher({0,0,0}) end), 
+	register(?NODE_WATCHER_PID ,spawn(fun() -> node_watcher({0,0,0}) end)), 
 
 	?ELEVATOR_MONITOR_PID ! init_complete,
 	?REMOTE_LISTENER_PID ! init_complete,
 	?DRIVER_MANAGER_PID ! init_complete,
 
+	lists:foreach(fun(Node) -> {?NODE_WATCHER_PID, Node} ! init_complete end, nodes()).
 
 	state_storage:update_state(node(), idle),
 	send_to_connected_nodes(update_state, {node(), idle}),
@@ -249,7 +251,10 @@ node_watcher(Timestamp) ->
 			state_storage:update_storage(Node),
 			Node_queue = queue_module:get_queue_set(Node,inner),
 			io:fwrite("My representation of ~w queue at crash: ~w ~n ", [Node,Node_queue]),
-			timer:sleep(3000), %RECEIVE INIT_COMPLETE FROM NODE
+			receive
+				init_complete ->
+					ok
+			end,
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 
 	after 30000 ->
