@@ -163,6 +163,7 @@ remote_listener() ->
 	receive
 		{add_order, {Elevator, Order}} ->
 			queue_module:add_to_queue(Elevator, Order),
+			io:fwrite("Got Order: ~w from remote ~n", [Order]),
 			remote_listener();
 
 		{update_state, {Elevator, stuck}} ->
@@ -174,7 +175,7 @@ remote_listener() ->
 			state_storage:set_information(set_state, {Elevator, State}),
 			remote_listener();
 
-		{update_last_known_floor, Elevator, Floor} ->
+		{update_last_known_floor, {Elevator, Floor}} ->
 			state_storage:set_information(set_last_known_floor, {Elevator, Floor}),
 			remote_listener();
 
@@ -217,9 +218,11 @@ node_watcher({0,0,0}) ->
 node_watcher(Timestamp) ->
 	receive 
 		{nodedown, Node} ->
+			io:fwrite("Node down ~w ~n", [Node]),
 			order_distributer:merge_from_elevator(Node),
 			node_watcher(Timestamp);
 		{nodeup, Node} ->
+			io:fwrite("Node up ~w ~n", [Node]),
 			queue_module:update_queue(Node),
 			state_storage:update_storage(Node),
 			Node_queue = queue_module:get_queue_set(Node,inner),
@@ -273,5 +276,6 @@ send_to_connected_nodes(Command, Message) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {Command, Message} end, nodes()).
 
 set_my_local_and_remote_info(Info_type, Message) ->
+	io:fwrite("Sending message: ~w to remote ~n", [Message]),
 	state_storage:set_information(list_to_atom("set_" ++ Info_type), {node(), Message}),
 	send_to_connected_nodes(list_to_atom("update_" ++ Info_type), {node(), Message}).
