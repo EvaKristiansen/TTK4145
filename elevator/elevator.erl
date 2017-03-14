@@ -20,8 +20,6 @@ start() ->
 	io:fwrite("Starting ... in floor: ~w ~n",[Floor]), %DEBUG
 	state_storage:init(Floor),
 
-	
-
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener() end)),
 	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager() end)),
 	spawn(fun() -> button_light_manager(driver:create_buttons([],0)) end),
@@ -115,7 +113,8 @@ remote_listener() -> % TODO
 			io:fwrite("The queue I received was: ~w ~n ", [Remote_queue]),
 			New_queue = ordsets:union(Original_queue,Remote_queue),
 			io:fwrite("My new queue is : ~w ~n ", [New_queue]),
-			queue_module:replace_queue(node(),New_queue)
+			queue_module:replace_queue(node(),New_queue),
+			remote_listener()
 
 			%UFERDIG: TIL CONSISTENCY CHECKS%
 		%{outer_queue_request, Sender} ->
@@ -213,6 +212,7 @@ node_watcher(Timestamp) ->
 			queue_module:update_queue(Node),
 			state_storage:update_storage(Node),
 			Node_queue = queue_module:get_queue_set(Node,inner),
+			io:fwrite("My representation of ~w s queue: ~w ~n ", [Node,Node_queue]),
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 
 	after 30000 ->
