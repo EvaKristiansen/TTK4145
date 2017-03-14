@@ -76,8 +76,6 @@ queue_storage_loop(Queues, My_next) -> %TODO: WHAT IS MEH!?
 
 		{replace, {Key, New_queue}} ->
 			Updated_queues = dict:append(Key, New_queue, dict:erase(Key, Queues)),
-			io:fwrite("My old inner queue was: ~w ~n ", [dict:find(Key,Queues)]),
-			io:fwrite("My new inner queue is: ~w ~n ", [Updated_queues]),
 			queue_storage_loop(Updated_queues, My_next)
 
 	end.

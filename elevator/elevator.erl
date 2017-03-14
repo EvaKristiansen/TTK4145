@@ -207,6 +207,7 @@ node_watcher({0,0,0}) ->
 node_watcher(Timestamp) ->
 	receive 
 		{nodedown, Node} ->
+			io:fwrite("NODE DOWN : ~w ~n", [Node]),
 			order_distributer:merge_from_elevator(Node),
 			node_watcher(Timestamp);
 		{nodeup, Node} ->
