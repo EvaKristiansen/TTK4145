@@ -215,6 +215,7 @@ node_watcher(Timestamp) ->
 			state_storage:update_storage(Node),
 			Node_queue = queue_module:get_queue_set(Node,inner),
 			io:fwrite("My representation of ~w queue at crash: ~w ~n ", [Node,Node_queue]),
+			timer:sleep(3000), %RECEIVE INIT_COMPLETE FROM NODE
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 
 	after 30000 ->
