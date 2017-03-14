@@ -86,6 +86,7 @@ send_remote_queue_removal(Floor) ->
 
 
 remote_listener() -> % TODO
+	io:fwrite("Starting remote remote_listener ~n ", []),
 	receive
 		{add_order, Elevator, Order} ->
 			queue_module:add_to_queue(Elevator, Order),
@@ -108,6 +109,7 @@ remote_listener() -> % TODO
 			remote_listener();
 
 		{merge_to_inner_queue, Remote_queue} ->	%Remote_queue is ordset
+			io:fwrite("Got merge to inner queue request ~n ", []),
 			Original_queue = queue_module:get_queue_set(node(),inner),
 			io:fwrite("My queue before merge message was: ~w ~n ", [Original_queue]),
 			io:fwrite("The queue I received was: ~w ~n ", [Remote_queue]),
@@ -212,7 +214,7 @@ node_watcher(Timestamp) ->
 			queue_module:update_queue(Node),
 			state_storage:update_storage(Node),
 			Node_queue = queue_module:get_queue_set(Node,inner),
-			io:fwrite("My representation of ~w s queue: ~w ~n ", [Node,Node_queue]),
+			io:fwrite("My representation of ~w queue at crash: ~w ~n ", [Node,Node_queue]),
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 
 	after 30000 ->
