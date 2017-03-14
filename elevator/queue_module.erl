@@ -10,11 +10,12 @@
 %Kan vi legge til -define(ORDER_TYPES,[up,down,inner]) eller noe i den duren?
 
 
-init()->
+init(Init_listener)->
 	Memberlist = get_member_list(),
-	io:fwrite("~w ~n ", [Memberlist]),
 	Queues = init_storage(dict:new(), Memberlist),
-	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues, none])).
+	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues, none])),
+	Init_listener ! queue_init_complete.
+
 
 get_member_list() ->
 	[node()] ++ nodes().	

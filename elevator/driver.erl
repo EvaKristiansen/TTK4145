@@ -1,6 +1,6 @@
 -module(driver).
--export([start/1, stop/0]).
--export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, turn_all_the_lights_off/0, reset_button_lights/1, create_buttons/2]). %Consider if init and turn all off is necessary
+-export([start/2, stop/0]).
+-export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, reset_button_lights/1, create_buttons/2]). %Consider if init and turn all off is necessary
 
 %-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
 
@@ -9,31 +9,30 @@
  -define(BUTTON_TYPES, [up,inner,down]).
  -record(button,{floor,type,state = 0}).
 
-start(Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
+start(Init_listener, Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
 	%Spawn communication thread:
 	spawn(fun() -> init_port("../driver/elev_port") end),
     %Wait before initializing:
     timer:sleep(100),
     %Initialize elevator, is void in c, so no return:
     init(),
-    turn_all_the_lights_off(),
-    move_to_floor_under(self()),
-    	receive 
-    		{ok, Floor} ->
-    			ok
-    	end,
+    Floor = go_to_defined_floor(self()),
+
     %Start sensor monitor that can send to process with PID SENSOR_MONITOR_PID in supermodule:
     Buttons = create_buttons([],0),
     spawn(fun() -> sensor_poller(Sensor_monitor_pid, Floor, Buttons) end),
-    Floor.
+    Init_listener ! {driver_init_complete, Floor}.
  
-move_to_floor_under(Pid) ->
+go_to_defined_floor(Pid) ->
 	set_motor_direction(down),
 	case Floor = get_floor_sensor_signal() of 
-		255 -> move_to_floor_under(Pid);
-		_ -> Pid ! {ok, Floor}
-	end,
-	set_motor_direction(stop).
+		255 -> go_to_defined_floor(Pid);
+		_ -> 
+			set_motor_direction(stop),
+			set_floor_indicator(Floor),
+			Floor
+	end.
+	
 
 	
 stop() ->
@@ -88,7 +87,7 @@ set_door_open_lamp(Value) -> call_port({elev_set_door_open_lamp, Value}).
 get_button_signal(ButtonType,Floor) -> call_port({elev_get_button_signal,ButtonType,Floor}).
 get_floor_sensor_signal() -> call_port({elev_get_floor_sensor_signal}).
 reset_button_lights(Floor) -> call_port({elev_reset_order_lights,Floor}).
-turn_all_the_lights_off() -> call_port({elev_turn_all_the_lights_off}).
+%turn_all_the_lights_off() -> call_port({elev_turn_all_the_lights_off}).
 
 %%%%%%% COMMUNICATION WITH C PORT %%%%%%%%
 init_port(ExtPrg) ->

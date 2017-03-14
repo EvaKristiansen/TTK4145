@@ -3,14 +3,15 @@
 - compile(export_all). % Turns out, loops have to be exported to be registered like we do... this may not be very neat
 - define(STATE_STORAGE_PID, ss). %Maybe we can send to this process on other computers when it is registered like this, at least, the simple add functions used to just send are not needed!
 
-init(Floor)-> % Floor? DEBUG
+init(Init_listener, Floor)-> % Floor? DEBUG
 	Memberlist = get_member_list(),
 	io:fwrite("Memberlist: ~w ~n ", [Memberlist]),
 	States = init_storage(dict:new(), Memberlist, init, get_state),
 	Last_known_floors = init_storage(dict:new(), Memberlist, Floor, get_last_known_floor),  % -1 for Floor? 
 	Directions = init_storage(dict:new(), Memberlist, stop, get_direction),
 
-	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])).
+	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])),
+	Init_listener ! state_init_complete.
 
 get_member_list() ->
 	[node()] ++ nodes().
