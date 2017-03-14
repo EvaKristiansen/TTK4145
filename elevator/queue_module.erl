@@ -102,9 +102,7 @@ add_member_if_unkown(error, New_member, Queues) ->
 
 add_to_queue(ElevatorID, Order) -> 
 	Key = create_key(ElevatorID, Order#order.type), 
-
 	?QUEUE_PID ! {add, {self(), Key, Order}},
-
 	receive
 		{ok,_Queue} ->
 			ok;
