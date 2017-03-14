@@ -86,6 +86,7 @@ elevator_monitor() ->
 	end.
 
 go_to_destination(stop) ->
+	register(?TIMER , spawn(fun() -> delay_timer() end)),
 	Floor = state_storage:get_last_floor(node()),
 	respond_to_new_floor(true, Floor);
 
