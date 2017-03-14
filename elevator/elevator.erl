@@ -114,8 +114,7 @@ remote_listener_init() ->
 	end.
 
 
-remote_listener() -> % TODO
-	io:fwrite("Starting remote remote_listener ~n ", []),
+remote_listener() ->
 	receive
 		{add_order, {Elevator, Order}} ->
 			queue_module:add_to_queue(Elevator, Order),
@@ -138,16 +137,12 @@ remote_listener() -> % TODO
 			remote_listener();
 
 		{merge_to_inner_queue, Remote_queue} ->	%Remote_queue is ordset
-			io:fwrite("Got merge to inner queue request ~n ", []),
 			Original_queue = queue_module:get_queue_set(node(),inner),
-			io:fwrite("My queue before merge message was: ~w ~n ", [Original_queue]),
-			io:fwrite("The queue I received was: ~w ~n ", [Remote_queue]),
 			New_queue = ordsets:union(Original_queue,Remote_queue),
-			io:fwrite("My new queue is : ~w ~n ", [New_queue]),
 			queue_module:replace_queue(node(),New_queue),
 			remote_listener()
 
-			%UFERDIG: TIL CONSISTENCY CHECKS%
+			%UFERDIG: TIL CONSISTENCY CHECKS %TODO
 		%{outer_queue_request, Sender} ->
 			%Outer_queue_list = 
 	end.
@@ -229,7 +224,7 @@ button_light_manager(Buttons) ->
 	button_light_manager(Buttons).
 
 update_button_light(Button)->
-	Toset = queue_module:is_order(button_to_order(Button)),
+	Toset = toset(Button),
 	set_button (Toset, Button). 
 
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
@@ -242,15 +237,12 @@ node_watcher({0,0,0}) ->
 node_watcher(Timestamp) ->
 	receive 
 		{nodedown, Node} ->
-			io:fwrite("NODE DOWN : ~w ~n", [Node]),
 			order_distributer:merge_from_elevator(Node),
 			node_watcher(Timestamp);
 		{nodeup, Node} ->
-			io:fwrite("NODE UP : ~w ~n", [Node]),
 			queue_module:update_queue(Node),
 			state_storage:update_storage(Node),
 			Node_queue = queue_module:get_queue_set(Node,inner),
-			io:fwrite("My representation of ~w queue at crash: ~w ~n ", [Node,Node_queue]),
 			receive
 				init_complete ->
 					ok
@@ -263,10 +255,17 @@ node_watcher(Timestamp) ->
 	end,
 	node_watcher({0,0,1}).
 
+toset({button,Floor,inner, _State}) ->
+	Order = #order{floor= Floor, type = inner},
+	queue_module:is_order(Order, node(), []);
+toset({button, Floor, Type, _State}) ->
+	Order = #order{floor= Floor, type = Type},
+	queue_module:is_order(Order).
+
+
+
+
 %%%%%%%%%%%%%%% HELPER FUNCTIONS; MAY BE REMOVABLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
 direction(0) -> stop;
 direction(Relative_position) when Relative_position > 0 -> up;
 direction(Relative_position) when Relative_position < 0 -> down.
-
-button_to_order(Button) ->
-	#order{floor= Button#button.floor, type = Button#button.type}.

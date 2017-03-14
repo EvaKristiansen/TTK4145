@@ -119,7 +119,6 @@ is_order(Order) ->
 	is_order(Order,get_member_list()).
 	
 
-
 is_order(_Order, []) -> false;
 is_order(Order, MemberList) ->
 	[Member | Rest] = MemberList,
