@@ -1,6 +1,6 @@
 {'driver.erl',[{outdir, "ebin"}]}.
 {'elevator.erl',[{outdir, "ebin"}]}.
-{'queue_module.erl',[{outdir, "ebin"}]}.
+{'queue_storage.erl',[{outdir, "ebin"}]}.
 {'order_distributer.erl',[{outdir, "ebin"}]}.
 {'connection.erl',[{outdir, "ebin"}]}.
 {'state_storage.erl',[{outdir, "ebin"}]}.
