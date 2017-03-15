@@ -1,6 +1,8 @@
 - module (queue_storage).
+
 - export([init/1,queue_storage_loop/2]).
 - export([get_my_next/0, set_my_next/1,add_to_queue/2, remove_from_queue/3,get_queue_set/2,replace_queue/2,update_queue/1,is_order/1,is_order/3]).
+
 
 - record(order,{floor,type}).
 
@@ -13,6 +15,7 @@ init(Init_listener)->
 	Queues = init_storage(dict:new(), Memberlist),
 	register(?QUEUE_PID, spawn(?MODULE, queue_storage_loop, [Queues, none])),
 	Init_listener ! queue_init_complete.
+
 	
 init_storage(Queues, []) -> Queues;
 init_storage(Queues, Memberlist) ->
@@ -23,6 +26,7 @@ init_storage(Queues, Member, Rest) ->
 	In_name = atom_to_list(Member) ++ "_inner",
 	Out_name = atom_to_list(Member) ++ "_outer",
 	Temp_dict = dict:append(In_name, ordsets:new(), Queues),
+
 	New_queues = dict:append(Out_name, ordsets:new(), Temp_dict),
 	init_storage(New_queues,Rest).
 
@@ -31,19 +35,24 @@ queue_storage_loop(Queues, My_next) ->
 		{add, {Pid, Key, Order}} ->
 			{_ok,[Subject_set | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:add_element(Order, Subject_set),
+
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
 			Pid ! {ok,Updated_queues},
 			queue_storage_loop(Updated_queues, My_next);
 
 		{remove, {Key, Order}} -> 
+
 			{_ok,[Subject_set | _Meh]} = dict:find(Key, Queues),
 			New_set = ordsets:del_element(Order,Subject_set),
+
 			Updated_queues = dict:append(Key, New_set, dict:erase(Key, Queues)),
 			queue_storage_loop(Updated_queues, My_next);
 
 		{is_in_queue, {Pid, Key, Order}} ->
+
 			{_ok,[Subject_set | _Meh]} = dict:find(Key, Queues),
 			Pid ! {ok, ordsets:is_element(Order, Subject_set)},
+
 			queue_storage_loop(Queues, My_next);
 
 		{update, New_member} ->
@@ -52,8 +61,10 @@ queue_storage_loop(Queues, My_next) ->
 			queue_storage_loop(Updated_queues, My_next); 
 
 		{get_queue, {Pid, Key}} ->
+
 			{_ok,[Subject_set|_Meh]} = dict:find(Key, Queues),
 			Pid ! {ok,Subject_set},
+
 			queue_storage_loop(Queues, My_next);
 
 		{get_my_next, Pid} ->
@@ -108,6 +119,7 @@ remove_from_queue(false, ElevatorID, Floor) ->
 	ok.
 
 get_queue_set(ElevatorID, Preposition) ->
+
 	?QUEUE_PID ! {get_queue, {self(),create_key(ElevatorID, Preposition)}},
 	receive 
 		{ok, Set} ->
@@ -122,6 +134,7 @@ get_queue_set(ElevatorID, Preposition) ->
 
 replace_queue(ElevatorID, New_queue) -> 
 	Key = create_key(ElevatorID, inner),
+
 	?QUEUE_PID ! {replace, {Key, New_queue}}.
 
 is_order(Order) ->
@@ -162,3 +175,4 @@ create_key(ElevatorID, down) -> atom_to_list(ElevatorID) ++ "_outer".
 
 get_member_list() ->
 	[node()] ++ nodes().	
+
