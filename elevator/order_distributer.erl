@@ -12,7 +12,9 @@ order_poller(MonitorPID) ->
 
 order_poller(New_order, Last_order, MonitorPID) ->
 	io:fwrite("order_poller starting ~n", []),
+
 	react_to_new_poll(New_order == Last_order, New_order, MonitorPID),
+
 	Newest_order = wait_and_get_next(300),
 	order_poller(Newest_order, New_order, MonitorPID).
 
@@ -26,12 +28,7 @@ react_to_new_poll(false, Floor_order, MonitorPID) ->
 	New_direction = direction(Relative_position),
 	Elevator_direction = state_storage:get_information(get_direction,node()),
 
-	case (Elevator_direction == New_direction) of 
-		true -> 
-			ok;
-		false ->
-			MonitorPID ! {new_destination, direction(Relative_position)}
-	end.
+	MonitorPID ! {new_destination, direction(Relative_position)}.
 
 wait_and_get_next(Time) ->
 	timer:sleep(Time),
