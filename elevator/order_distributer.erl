@@ -74,7 +74,6 @@ distribute_order(Order) ->
 	queue_storage:add_to_queue(Winner, Order),
 	Winner.
 
-
 choose_winner([], _Penalties, {_Lowest_value, Member}) -> Member;
 choose_winner(MemberList, Penalties, Best_so_far) ->
 	[Member | Rest] = MemberList,
@@ -95,6 +94,7 @@ get_penalties(MemberList, Penalties, Order) ->
 	get_penalty(Member, Rest, Penalties, Order).
 
 get_penalty(Member, Rest, Penalties, Order) ->
+	
 	State = state_storage:get_information(get_state, Member),
 	Elevator_floor = state_storage:get_information(get_last_known_floor,Member),
 	Elevator_direction = state_storage:get_information(get_direction,Member),
@@ -111,7 +111,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 
 state_penalty(init) -> 1000;
 state_penalty(unknown) -> 1000;
-state_penalty(idle) -> 10;
+state_penalty(idle) -> 10; %Decrease this?
 state_penalty(moving) -> 10;
 state_penalty(door_open) -> 10;
 state_penalty(stuck) -> 1000.

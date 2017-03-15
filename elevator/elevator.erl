@@ -188,8 +188,8 @@ delay_timer() ->
 			ok
 
 	after 8000 ->
-		?ELEVATOR_MONITOR_PID ! {stuck},
-		delay_timer()
+		driver:stop(),
+		init:stop()
 	end.
 
 button_light_manager(Buttons) ->
