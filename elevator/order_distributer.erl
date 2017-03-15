@@ -7,8 +7,8 @@
 -define(NUM_BUTTONS, 3).
 
 order_poller(MonitorPID) ->
-	order_distributer:update_my_next(),
-	order_poller(none, queue_storage:get_my_next(), MonitorPID).
+	update_my_next(),
+	order_poller(queue_storage:get_my_next(), none, MonitorPID).
 
 order_poller(New_order, Last_order, MonitorPID) ->
 	io:fwrite("order_poller starting ~n", []),
@@ -25,7 +25,8 @@ react_to_new_poll(false, Floor_order, MonitorPID) ->
 	Relative_position = Floor_order - Elevator_floor,
 	New_direction = direction(Relative_position),
 	Elevator_direction = state_storage:get_information(get_direction,node()),
-	case Elevator_direction == New_direction of 
+
+	case (Elevator_direction == New_direction) of 
 		true -> 
 			ok;
 		false ->
