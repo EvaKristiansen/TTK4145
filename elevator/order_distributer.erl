@@ -19,7 +19,7 @@ react_to_new_poll(_, none, _Pid) ->
 react_to_new_poll(true, _Floor_order, _Pid) ->
 	ok;
 react_to_new_poll(false, Floor_order, MonitorPID) ->
-	Elevator_floor = state_storage:get_last_floor(node()), 
+	Elevator_floor = state_storage:get_information(get_last_known_floor,node()), 
 	Relative_position = Floor_order - Elevator_floor,
 	MonitorPID ! {new_destination, direction(Relative_position)}.
 
@@ -30,8 +30,8 @@ wait_and_get_next(Time) ->
 
 
 update_my_next() ->
-	Elevator_floor = state_storage:get_last_floor(node()),
-	Elevator_direction = state_storage:get_direction(node()),
+	Elevator_floor = state_storage:get_information(get_last_known_floor,node()),
+	Elevator_direction = state_storage:get_information(get_direction,node()),
 	Elevator_direction_int = direction_to_int(Elevator_direction),
 	Outer_list = ordsets:to_list(queue_storage:get_queue_set(node(), outer)),
 	Inner_list = ordsets:to_list(queue_storage:get_queue_set(node(), inner)),
@@ -90,9 +90,9 @@ get_penalties(MemberList, Penalties, Order) ->
 	get_penalty(Member, Rest, Penalties, Order).
 
 get_penalty(Member, Rest, Penalties, Order) ->
-	State = state_storage:get_state(Member),
-	Elevator_floor = state_storage:get_last_floor(Member),
-	Elevator_direction = state_storage:get_direction(Member),
+	State = state_storage:get_information(get_state, Member),
+	Elevator_floor = state_storage:get_information(get_last_known_floor,Member),
+	Elevator_direction = state_storage:get_information(get_direction,Member),
 	Elevator_direction_int = direction_to_int(Elevator_direction),
 	Order_type_int = order_type_to_int(Order#order.type),
 
@@ -124,9 +124,6 @@ sign(Argument) ->
 return_sign(true) -> 1;
 return_sign(false) -> -1.
 
-%%%%%%%%%%%%%%%%%% FORSLAG TIL NY FUNKSJON: %%%%%%%%%%%%%%%%%%%%%
-%%%% TYPE: 0 | 1 | -1 |
-%position_penalty(Moving_towards_pling, Relative_position, Distance, Type_int), 
 
 position_penalty(true, _Relative_position, Distance, 0) ->
 	Distance;
@@ -134,13 +131,13 @@ position_penalty(true, _Relative_position, Distance, 0) ->
 position_penalty(false, _Relative_position, Distance, 0) ->
 	Distance + 10;
 position_penalty(true, false , Distance, _Type_int) ->
-	(?NUM_FLOORS - Distance) + 10; %TURN PENALTY = 10, DEFINE?
+	(?NUM_FLOORS - Distance) + 10; 
 
 position_penalty(false, true, Distance, _Type_int) ->
-	(?NUM_FLOORS - Distance) + 2*10; %TURN PENALTY = 10, DEFINE?
+	(?NUM_FLOORS - Distance) + 2*10; 
 
-position_penalty(false, false , Distance, _Type_int) -> % HER SKAL DET VÆRE Distance + ?NUM_FLOORS TODO
-	(?NUM_FLOORS + Distance) + 10; %TURN PENALTY = 10, DEFINE?
+position_penalty(false, false , Distance, _Type_int) ->
+	(?NUM_FLOORS + Distance) + 10; 
 
 position_penalty(true, true, Distance, _Type_int) ->
 	Distance.

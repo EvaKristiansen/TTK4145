@@ -13,10 +13,6 @@ init(Init_listener, Floor)-> % Floor? DEBUG
 	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])),
 	Init_listener ! state_init_complete.
 
-get_member_list() ->
-	[node()] ++ nodes().
-	
-
 init_storage(StorageList, [], _Inital_value, _Type) -> StorageList;
 init_storage(StorageList, MemberList, Initial_value, Type) ->
 	[Member | Rest] = MemberList,
@@ -83,27 +79,6 @@ add_member_if_unkown(error, New_member, {States, Last_known_floors, Directions})
 	{Updated_states, Updated_last_known_floors, Updated_directions}.
 
 
-get_state(ElevatorID) ->
-	?STATE_STORAGE_PID ! {get_state, {self(),ElevatorID}},
-	receive
-		{ok, State} ->
-			State
-	end.
-
-get_last_floor(ElevatorID) ->
-	?STATE_STORAGE_PID ! {get_last_known_floor, {self(),ElevatorID}},
-	receive
-		{ok, Floor} ->
-			Floor
-	end.
-
-get_direction(ElevatorID) ->
-?STATE_STORAGE_PID ! {get_direction, {self(),ElevatorID}},
-	receive
-		{ok, Direction} ->
-			Direction
-	end.
-
 get_information(Command, ElevatorID) ->
 	?STATE_STORAGE_PID ! {Command, {self(), ElevatorID}},
 	receive
@@ -117,3 +92,6 @@ update_storage(ElevatorID) ->
 
 set_information(Command, {ElevatorID, Value}) ->
 	?STATE_STORAGE_PID ! {Command, {ElevatorID, Value}}.
+
+get_member_list() ->
+	[node()] ++ nodes().
