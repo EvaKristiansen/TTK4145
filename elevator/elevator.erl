@@ -52,7 +52,7 @@ start() ->
 	lists:foreach(fun(Node) -> {?NODE_WATCHER_PID, Node} ! init_complete end, nodes()),
 
 	set_my_local_and_remote_info("state", idle),
-	spawn(fun()-> order_poller() end).
+	spawn(fun()-> order_distributer:order_poller(?ELEVATOR_MONITOR_PID) end).
 
 elevator_monitor_init() ->
 	receive
@@ -200,28 +200,7 @@ remote_listener() ->
 	end.
 
 
-order_poller() ->
-	order_distributer:update_my_next(),
-	order_poller(none, queue_module:get_my_next()).
 
-order_poller(New_order, Last_order) ->
-	react_to_new_poll(New_order == Last_order, New_order),
-	Newest_order = wait_and_get_next(300),
-	order_poller(Newest_order, New_order).
-
-react_to_new_poll(_, none) ->
-	ok;
-react_to_new_poll(true, _Floor_order) ->
-	ok;
-react_to_new_poll(false, Floor_order) ->
-	Elevator_floor = state_storage:get_last_floor(node()), 
-	Relative_position = Floor_order - Elevator_floor,
-	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}.
-
-wait_and_get_next(Time) ->
-	timer:sleep(Time),
-	order_distributer:update_my_next(),
-	queue_module:get_my_next().
 
 
 
