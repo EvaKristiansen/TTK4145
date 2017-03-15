@@ -183,14 +183,14 @@ node_watcher(Timestamp) ->
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 	after 30000 ->
 		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
-		Receiver = spawn(?MODULE,merge_received,[ordsets:new(),self(),0]),
+		Receiver = spawn(fun() -> merge_received(ordsets:new(),self(),0) end),
 		send_to_connected_nodes(outer_queue_request, {node(),Receiver}),
 		receive 
 			Remote_queue_set ->
-				ok,
+				ok
 		end,
 		Queue_set = queue_storage:get_queue_set(node(),outer),
-		New_queue_set = ordsets:union(My_queue_set,Remote_queue_set),
+		New_queue_set = ordsets:union(Queue_set,Remote_queue_set),
 		queue_storage:replace_queue(node(),New_queue_set)
 		%Kan kanskje også be om tilstand og last-knowns? Blir strengt tatt oppdatert ofte
 		%Kan også oppdatere sine indre kørepresentasjoner av de andre heisene
@@ -204,7 +204,7 @@ merge_received(Set,Requester,Counter) ->
 			All_nodes_replied = (Counter == length(nodes())),
 			if
 				All_nodes_replied ->
-					Pid ! RetList;
+					Requester ! New_set;
 				not All_nodes_replied ->
 					merge_received(Return_set,Requester, Counter + 1)
 			end
@@ -245,8 +245,8 @@ go_to_destination(stop) ->
 go_to_destination(Direction) ->
 	case Direction == state_storage:get_information(get_direction,node()) of 
 		true ->
-			ok,
-		false - >
+			ok;
+		false ->
 			?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}
 	end.
 
@@ -273,4 +273,3 @@ set_my_local_and_remote_info(Info_type, Message) ->
 
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
 set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
-
