@@ -154,7 +154,12 @@ remote_listener() ->
 			Original_queue = queue_storage:get_queue_set(node(),inner),
 			New_queue = ordsets:union(Original_queue,Remote_queue),
 			queue_storage:replace_queue(node(),New_queue),
-			remote_listener()
+			remote_listener();
+
+		{outer_queue_request, {Node, Receiver}} ->
+			%TANKE: Hvis alle selv ber om sitt ytre sett, og merger i sitt ytre set, mister vi i alle fall ikke noe
+			{Node, Receiver} ! queue_storage:get_queue_set(Node,outer)
+
 	end.
 
 node_watcher({0,0,0}) ->
@@ -178,9 +183,34 @@ node_watcher(Timestamp) ->
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 	after 30000 ->
 		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
-		ok
+		Receiver = spawn(?MODULE,merge_received,[ordsets:new(),self(),0]),
+		send_to_connected_nodes(outer_queue_request, {node(),Receiver}),
+		receive 
+			Remote_queue_set ->
+				ok,
+		end,
+		Queue_set = queue_storage:get_queue_set(node(),outer),
+		New_queue_set = ordsets:union(My_queue_set,Remote_queue_set),
+		queue_storage:replace_queue(node(),New_queue_set)
+		%Kan kanskje også be om tilstand og last-knowns? Blir strengt tatt oppdatert ofte
+		%Kan også oppdatere sine indre kørepresentasjoner av de andre heisene
 	end,
 	node_watcher({0,0,1}).
+
+merge_received(Set,Requester,Counter) ->
+	receive
+		New_set -> 
+			Return_set = ordsets:union(Set,New_set),
+			All_nodes_replied = (Counter == length(nodes())),
+			if
+				All_nodes_replied ->
+					Pid ! RetList;
+				not All_nodes_replied ->
+					merge_received(Return_set,Requester, Counter + 1)
+			end
+	after 50 ->
+		Requester ! Set
+	end.
 
 delay_timer() ->
 	receive
@@ -243,3 +273,4 @@ set_my_local_and_remote_info(Info_type, Message) ->
 
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
 set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
+
