@@ -131,7 +131,7 @@ driver_manager() ->
 			lists:foreach(fun(Node) -> queue_module:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
 			send_to_connected_nodes(remove_from_queue, {node(), Floor}),
 			set_my_local_and_remote_info("state", idle),
-			spawn(fun()-> order_poller() end),
+			%spawn(fun()-> order_poller() end),
 			
 			driver_manager();
 
@@ -140,7 +140,7 @@ driver_manager() ->
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
 			set_my_local_and_remote_info("state", idle),
-			spawn(fun()-> order_poller() end),
+			%spawn(fun()-> order_poller() end),
 
 			driver_manager();
 
@@ -199,18 +199,31 @@ remote_listener() ->
 			%Outer_queue_list = 
 	end.
 
+
 order_poller() ->
 	order_distributer:update_my_next(),
-	order_poller(queue_module:get_my_next()).
+	order_poller(none, queue_module:get_my_next()).
 
-order_poller(none) -> % No orders to take, wait and check again.
-	timer:sleep(300), %TODO check poll period 
-	order_poller();
+order_poller(New_order, Last_order) ->
+	react_to_new_poll(New_order == Last_order, New_order),
+	Newest_order = wait_and_get_next(300),
+	order_poller(Newest_order, New_order).
 
-order_poller(Next_floor) -> 				%Checks if my elevator has place it should be, when in state idle
-	Elevator_floor = state_storage:get_last_floor(node()), %Assume it has been updated
-	Relative_position = Next_floor - Elevator_floor,
+react_to_new_poll(_, none) ->
+	ok;
+react_to_new_poll(true, _Floor_order) ->
+	ok;
+react_to_new_poll(false, Floor_order) ->
+	Elevator_floor = state_storage:get_last_floor(node()), 
+	Relative_position = Floor_order - Elevator_floor,
 	?ELEVATOR_MONITOR_PID ! {new_destination, direction(Relative_position)}.
+
+wait_and_get_next(Time) ->
+	timer:sleep(Time),
+	order_distributer:update_my_next(),
+	queue_module:get_my_next().
+
+
 
 node_watcher({0,0,0}) ->
 	global_group:monitor_nodes(true),

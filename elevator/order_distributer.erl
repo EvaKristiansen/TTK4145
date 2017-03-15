@@ -1,10 +1,32 @@
 - module (order_distributer).
-- export([distribute_order/1, update_my_next/0]).
+- export([distribute_order/1, update_my_next/0, order_poller/1]).
 - compile(export_all).
  -define(NUM_FLOORS, 4).
  -define(NUM_BUTTONS, 3).
 - record(order,{floor,type}).
 
+order_poller(MonitorPID) ->
+	order_distributer:update_my_next(),
+	order_poller(none, queue_module:get_my_next(), MonitorPID).
+
+order_poller(New_order, Last_order, MonitorPID) ->
+	react_to_new_poll(New_order == Last_order, New_order, MonitorPID),
+	Newest_order = wait_and_get_next(300),
+	order_poller(Newest_order, New_order, MonitorPID).
+
+react_to_new_poll(_, none, _Pid) ->
+	ok;
+react_to_new_poll(true, _Floor_order, _Pid) ->
+	ok;
+react_to_new_poll(false, Floor_order, MonitorPID) ->
+	Elevator_floor = state_storage:get_last_floor(node()), 
+	Relative_position = Floor_order - Elevator_floor,
+	MonitorPID ! {new_destination, direction(Relative_position)}.
+
+wait_and_get_next(Time) ->
+	timer:sleep(Time),
+	order_distributer:update_my_next(),
+	queue_module:get_my_next().
 
 
 update_my_next() ->
@@ -25,8 +47,9 @@ update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator
 	Moving_towards_pling = compare(sign(Relative_position), sign(Elevator_direction_int)),	% True if elevator moves towards pling
 	Equal_direction = compare(order_type_to_int(Order#order.type), Elevator_direction_int), 		% True if elevator and signal same direction
 	Distance = abs(Relative_position),
-	Order_type_int = order_type_to_int(Oder#order.type), % NEW
+	Order_type_int = order_type_to_int(Order#order.type), % NEW
 	Penalty = position_penalty(Moving_towards_pling,Equal_direction,Distance, Order_type_int), % NEW
+	io:fwrite("Order ~w, got penalty ~w ~n", [Order, Penalty]),
 	case (Penalty < Best_penalty) of 
 		true ->
 			update_my_next(Rest, {Penalty,Order}, Elevator_floor, Elevator_direction_int);
@@ -74,6 +97,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	Order_type_int = order_type_to_int(Order#order.type),
 
 	Relative_position = Order#order.floor - Elevator_floor,		% Positive if pling is over elevator, else negative
+	io:fwrite("Order floor: ~w, Elevator_floor: ~w ~n", [Order#order.floor, Elevator_floor]),
 	Moving_towards_pling = compare(sign(Relative_position), sign(Elevator_direction_int)),	% True if elevator moves towards pling
 	Equal_direction = compare(Order_type_int, Elevator_direction_int), 		% True if elevator and signal same direction
 	Distance = abs(Relative_position),
@@ -102,7 +126,7 @@ return_sign(false) -> -1.
 
 %%%%%%%%%%%%%%%%%% FORSLAG TIL NY FUNKSJON: %%%%%%%%%%%%%%%%%%%%%
 %%%% TYPE: 0 | 1 | -1 |
-position_penalty(Moving_towards_pling, Relative_position, Distance, Type_int), 
+%position_penalty(Moving_towards_pling, Relative_position, Distance, Type_int), 
 
 position_penalty(true, _Relative_position, Distance, 0) ->
 	Distance;
@@ -116,25 +140,21 @@ position_penalty(false, true, Distance, _Type_int) ->
 	(?NUM_FLOORS - Distance) + 2*10; %TURN PENALTY = 10, DEFINE?
 
 position_penalty(false, false , Distance, _Type_int) -> % HER SKAL DET VÆRE Distance + ?NUM_FLOORS TODO
-	(?NUM_FLOOR + Distance) + 10. %TURN PENALTY = 10, DEFINE?
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	(?NUM_FLOORS + Distance) + 10; %TURN PENALTY = 10, DEFINE?
 
-%%%%% SEMI WORKING CODE: 
-%position_penalty(_, _, 0) -> % HER ER DET NOE MUFFENS
-%	0;
-%
-%position_penalty(true, true , Distance) ->
-%	Distance;
-%
-%position_penalty(true, false , Distance) ->
-%	(?NUM_FLOORS - Distance) + 10; %TURN PENALTY = 10, DEFINE?
-%
-%position_penalty(false, true, Distance) ->
-%	(?NUM_FLOORS - Distance) + 2*10; %TURN PENALTY = 10, DEFINE?
-%
-%position_penalty(false, false , Distance) -> % HER SKAL DET VÆRE Distance + ?NUM_FLOORS TODO
-%	(?NUM_FLOOR + Distance) + 10. %TURN PENALTY = 10, DEFINE?
+position_penalty(true, true, Distance, _Type_int) ->
+	Distance.
 
+
+
+merge_from_elevator(ElevatorID)->
+	Queue = ordsets:to_list(queue_module:get_queue_set(ElevatorID,outer)),
+	io:fwrite("~n~n~n", []),
+	io:fwrite("Outer queue of crashing node: ~w ~n", [Queue]),
+	io:fwrite("My outer queue before the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
+	lists:foreach(fun(Order) -> distribute_order(Order) end, Queue),
+	io:fwrite("My outer queue after the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
+	io:fwrite("~n~n~n", []).
 
 
 order_type_to_int(down) -> -1; %Consider merging with function below
@@ -145,11 +165,6 @@ direction_to_int(down) -> -1;
 direction_to_int(stop) -> 0;
 direction_to_int(up) -> 1.
 
-merge_from_elevator(ElevatorID)->
-	Queue = ordsets:to_list(queue_module:get_queue_set(ElevatorID,outer)),
-	io:fwrite("~n~n~n", []),
-	io:fwrite("Outer queue of crashing node: ~w ~n", [Queue]),
-	io:fwrite("My outer queue before the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
-	lists:foreach(fun(Order) -> distribute_order(Order) end, Queue),
-	io:fwrite("My outer queue after the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
-	io:fwrite("~n~n~n", []).
+direction(0) -> stop;
+direction(Relative_position) when Relative_position > 0 -> up;
+direction(Relative_position) when Relative_position < 0 -> down.
