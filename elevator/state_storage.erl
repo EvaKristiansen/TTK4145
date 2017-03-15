@@ -1,40 +1,34 @@
 
-- module (state_storage). %Was thinking file is not a state machine, but a state storage?
-- compile(export_all). % Turns out, loops have to be exported to be registered like we do... this may not be very neat
-- define(STATE_STORAGE_PID, ss). %Maybe we can send to this process on other computers when it is registered like this, at least, the simple add functions used to just send are not needed!
+- module (state_storage).
+- export([init/2, storage_loop/3]).
+- export([get_information/2, set_information/2, update_storage/1]).
 
-init(Init_listener, Floor)-> % Floor? DEBUG
+- define(STATE_STORAGE_PID, ss).
+
+init(Init_listener, Floor)->
 	Memberlist = get_member_list(),
-	io:fwrite("Memberlist: ~w ~n ", [Memberlist]),
 	States = init_storage(dict:new(), Memberlist, init, get_state),
-	Last_known_floors = init_storage(dict:new(), Memberlist, Floor, get_last_known_floor),  % -1 for Floor? 
+	Last_known_floors = init_storage(dict:new(), Memberlist, Floor, get_last_known_floor),
 	Directions = init_storage(dict:new(), Memberlist, stop, get_direction),
-
 	register(?STATE_STORAGE_PID, spawn(?MODULE, storage_loop, [States,Last_known_floors,Directions])),
 	Init_listener ! state_init_complete.
 
-get_member_list() ->
-	[node()] ++ nodes().
-	
-
-init_storage(StorageList, [], _Inital_value, _Type) -> StorageList;
-init_storage(StorageList, MemberList, Initial_value, Type) ->
+init_storage(Storagelist, [], _Inital_value, _Type) -> Storagelist;
+init_storage(Storagelist, MemberList, Initial_value, Type) ->
 	[Member | Rest] = MemberList,
-	add_storage(Member == node(), StorageList, Member, Rest, Initial_value, Type).
+	add_storage(Member == node(), Storagelist, Member, Rest, Initial_value, Type).
 
-add_storage(true, StorageList, Member, Rest, Initial_value, Type) ->
-	New_storage = dict:append(Member, Initial_value , StorageList),  %Assuming we will not initialize state machine unless in state init
+add_storage(true, Storagelist, Member, Rest, Initial_value, Type) ->
+	New_storage = dict:append(Member, Initial_value , Storagelist), 
 	init_storage(New_storage,Rest,Initial_value, Type);
-
-add_storage(false, StorageList, Member, Rest, _Initial_value, Type) ->
-	{?STATE_STORAGE_PID, Member} ! {Type, {self(), Member}}, % Spør den gitte noden om dens egen state
+add_storage(false, Storagelist, Member, Rest, _Initial_value, Type) ->
+	{?STATE_STORAGE_PID, Member} ! {Type, {self(), Member}},
 	receive
 		{ok, State} ->
 		State
 	end,
-	New_storage = dict:append(Member, State , StorageList),  %Assuming we will not initialize state machine unless in state init
+	New_storage = dict:append(Member, State , Storagelist),
 	init_storage(New_storage,Rest,State, Type).
-
 
 storage_loop(States,Last_known_floors,Directions) ->
 	receive
@@ -73,40 +67,28 @@ storage_loop(States,Last_known_floors,Directions) ->
 	end.
 
 add_member_if_unkown({ok, _}, New_member, {States, Last_known_floors, Directions}) ->
-	Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)), %TODO tenk på unknown DO WE NEED TO APPEND?
+	Updated_states = dict:append(New_member, unknown, dict:erase(New_member, States)),
 	{Updated_states, Last_known_floors, Directions};
 
 add_member_if_unkown(error, New_member, {States, Last_known_floors, Directions}) ->
-	Updated_states = dict:append(New_member, unknown, States), %TODO tenk på unknown
+	Updated_states = dict:append(New_member, unknown, States),
 	Updated_last_known_floors = dict:append(New_member, -1 ,Last_known_floors),
 	Updated_directions = dict:append(New_member, stop, Directions),
 	{Updated_states, Updated_last_known_floors, Updated_directions}.
 
 
-get_state(ElevatorID) ->
-	?STATE_STORAGE_PID ! {get_state, {self(),ElevatorID}},
+get_information(Command, ElevatorID) ->
+	?STATE_STORAGE_PID ! {Command, {self(), ElevatorID}},
 	receive
-		{ok, State} ->
-			State
-	end.
-
-get_last_floor(ElevatorID) ->
-	?STATE_STORAGE_PID ! {get_last_known_floor, {self(),ElevatorID}},
-	receive
-		{ok, Floor} ->
-			Floor
-	end.
-
-get_direction(ElevatorID) ->
-?STATE_STORAGE_PID ! {get_direction, {self(),ElevatorID}},
-	receive
-		{ok, Direction} ->
-			Direction
+		{ok, Value} ->
+			Value
 	end.
 
 update_storage(ElevatorID) ->
 	?STATE_STORAGE_PID ! {update, ElevatorID}.
 
-
 set_information(Command, {ElevatorID, Value}) ->
 	?STATE_STORAGE_PID ! {Command, {ElevatorID, Value}}.
+
+get_member_list() ->
+	[node()] ++ nodes().

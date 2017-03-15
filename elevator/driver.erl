@@ -1,19 +1,17 @@
 -module(driver).
 -export([start/2, stop/0]).
--export([init/0, set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, reset_button_lights/1, create_buttons/2]). %Consider if init and turn all off is necessary
+-export([set_motor_direction/1, set_button_lamp/3, set_floor_indicator/1, set_door_open_lamp/1, create_buttons/2]). %Consider if init and turn all off is necessary
 
-%-record(order,{floor,direction}). MAY TURN OUT TO BE USEFUL?
+-record(button,{floor,type,state = 0}).
 
- -define(NUM_FLOORS, 4).
- -define(NUM_BUTTONS, 3).
- -define(BUTTON_TYPES, [up,inner,down]).
- -record(button,{floor,type,state = 0}).
+-define(NUM_FLOORS, 4).
+-define(NUM_BUTTONS, 3).
+-define(BUTTON_TYPES, [up,inner,down]).
 
-start(Init_listener, Sensor_monitor_pid) -> %Sensor monitor pid as argument for easy read
-	%Spawn communication thread:
+start(Init_listener, Sensor_monitor_pid) -> 
 	spawn(fun() -> init_port("../driver/elev_port") end),
-    %Wait before initializing:
     timer:sleep(100),
+
     %Initialize elevator, is void in c, so no return:
     init(),
     Floor = go_to_defined_floor(),
@@ -33,18 +31,10 @@ go_to_defined_floor() ->
 			Floor
 	end.
 	
-
-	
-stop() ->
-    driver ! stop.
-
-
-sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> % (Variable, List)
-	%Checking floor sensor input
+sensor_poller(Sensor_monitor_pid, Last_floor, Buttons) -> 
 	New_floor = get_floor_sensor_signal(),
 	floor_sensor_reaction(New_floor == Last_floor, New_floor, Sensor_monitor_pid),
 
-	%Need to check for button sensor input
 	Updated_buttons = button_sensor_poller(Sensor_monitor_pid, Buttons,[]),
 	timer:sleep(50),
 	sensor_poller(Sensor_monitor_pid, New_floor, Updated_buttons).
@@ -56,7 +46,6 @@ floor_sensor_reaction(false, 255, _PID) ->
 floor_sensor_reaction(false, New_floor, Sensor_monitor_pid) ->
 	Sensor_monitor_pid ! {new_floor_reached, New_floor}.
 
-
 button_sensor_poller(_Sensor_monitor_pid, [], Updated_buttons) -> Updated_buttons; % No more buttons
 button_sensor_poller(Sensor_monitor_pid, Buttons, Updated_buttons) ->
 	[Button | Rest] = Buttons,
@@ -64,30 +53,26 @@ button_sensor_poller(Sensor_monitor_pid, Buttons, Updated_buttons) ->
 
 button_sensor_poller(Sensor_monitor_pid, Button, Rest, Updated_buttons) -> % Still have more buttons to check
 	Floor = Button#button.floor,
-	ButtonType = Button#button.type,
+	Button_type = Button#button.type,
 	State = Button#button.state,
-	New_state = get_button_signal(ButtonType,Floor),
-	react_to_button_press((New_state /= State) and (New_state == 1), Sensor_monitor_pid, Floor, ButtonType),
-	New_buttons = Updated_buttons ++ [#button{floor=Floor,type = ButtonType,state = New_state}],
+	New_state = get_button_signal(Button_type,Floor),
+	react_to_button_press((New_state /= State) and (New_state == 1), Sensor_monitor_pid, Floor, Button_type),
+	New_buttons = Updated_buttons ++ [#button{floor=Floor,type = Button_type,state = New_state}],
 	button_sensor_poller(Sensor_monitor_pid, Rest, New_buttons).
 
-
-react_to_button_press(true, Sensor_monitor_pid, Floor, ButtonType) ->
-	Sensor_monitor_pid ! {button_pressed, Floor, ButtonType};
-react_to_button_press(false, _SENSOR_MONITOR_PID, _Floor, _ButtonType) ->
+react_to_button_press(true, Sensor_monitor_pid, Floor, Button_type) ->
+	Sensor_monitor_pid ! {button_pressed, Floor, Button_type};
+react_to_button_press(false, _SENSOR_MONITOR_PID, _Floor, _Button_type) ->
 	false.
-
 
 %%%%%%% ERL VERSIONS OF C FUNCTIONS %%%%%%%%
 init() -> call_port(elev_init).
 set_motor_direction(Direction) -> call_port({elev_set_motor_direction, Direction}).
-set_button_lamp(ButtonType,Floor,Value) -> call_port({elev_set_button_lamp,ButtonType,Floor, Value}).
+set_button_lamp(Button_type,Floor,Value) -> call_port({elev_set_button_lamp,Button_type,Floor, Value}).
 set_floor_indicator(Floor) -> call_port({elev_set_floor_indicator,Floor}).
 set_door_open_lamp(Value) -> call_port({elev_set_door_open_lamp, Value}).
-get_button_signal(ButtonType,Floor) -> call_port({elev_get_button_signal,ButtonType,Floor}).
+get_button_signal(Button_type,Floor) -> call_port({elev_get_button_signal,Button_type,Floor}).
 get_floor_sensor_signal() -> call_port({elev_get_floor_sensor_signal}).
-reset_button_lights(Floor) -> call_port({elev_reset_order_lights,Floor}).
-%turn_all_the_lights_off() -> call_port({elev_turn_all_the_lights_off}).
 
 %%%%%%% COMMUNICATION WITH C PORT %%%%%%%%
 init_port(ExtPrg) ->
@@ -123,6 +108,9 @@ call_port(Msg) ->
 	    Result
     end.
 
+stop() ->
+    driver ! stop.
+
 
 %%%%%%% ENCODING MESSAGES FOR C PORT %%%%%%%%
 encode(elev_init) -> [1];
@@ -152,6 +140,7 @@ encode({elev_get_floor_sensor_signal}) -> [7];
 
 encode({elev_reset_order_lights,Floor}) -> [8,Floor];
 encode({elev_turn_all_the_lights_off}) -> [9].
+
 
 %%%%%% HELPER FUNCTIONS %%%%%%
 create_buttons(Buttons,0) -> %At bottom floor
