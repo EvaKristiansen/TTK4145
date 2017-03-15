@@ -111,7 +111,6 @@ driver_manager() ->
 
 		{go_to_destination, Direction} ->
 			driver:set_motor_direction(Direction),
-
 			set_my_local_and_remote_info("direction", Direction),
 			set_my_local_and_remote_info("state", moving),
 			register(?TIMER , spawn(fun() -> delay_timer() end)),
