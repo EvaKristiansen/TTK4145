@@ -1,17 +1,18 @@
 - module(elevator).
 - export([start/0]).
+
+- record(order,{floor,type}).
+- record(button,{floor,type,state = 0}).
+
 - define(ELEVATOR_MONITOR_PID, empid).
 - define(REMOTE_LISTENER_PID, rlpid).
 - define(STATE_STORAGE_PID, ss).
 - define(DRIVER_MANAGER_PID, dmpid).
 - define(NODE_WATCHER_PID, nwpid).
 - define(TIMER, tmpid).
-- record(order,{floor,type}).
- -record(button,{floor,type,state = 0}).
-- compile(export_all).
 
 start() ->
-	register(?ELEVATOR_MONITOR_PID, spawn(fun() -> elevator_monitor_init() end)), %Should be init-versions of functions
+	register(?ELEVATOR_MONITOR_PID, spawn(fun() -> elevator_monitor_init() end)),
 	register(?REMOTE_LISTENER_PID, spawn(fun() -> remote_listener_init() end)),
 	register(?DRIVER_MANAGER_PID, spawn(fun() -> driver_manager_init() end)),
 
@@ -97,7 +98,6 @@ driver_manager() ->
 			lists:foreach(fun(Node) -> queue_storage:remove_from_queue(Node == node(), Node, Floor) end, [node()]++nodes() ), 
 			send_to_connected_nodes(remove_from_queue, {node(), Floor}),
 			set_my_local_and_remote_info("state", idle),
-			%spawn(fun()-> order_poller() end),
 			
 			driver_manager();
 
@@ -106,7 +106,6 @@ driver_manager() ->
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
 			set_my_local_and_remote_info("state", idle),
-			%spawn(fun()-> order_poller() end),
 
 			driver_manager();
 
@@ -129,7 +128,6 @@ remote_listener() ->
 	receive
 		{add_order, {Elevator, Order}} ->
 			queue_storage:add_to_queue(Elevator, Order),
-			io:fwrite("Got Order: ~w from remote ~n", [Order]),
 			remote_listener();
 
 		{update_state, {Elevator, stuck}} ->
@@ -153,15 +151,11 @@ remote_listener() ->
 			lists:foreach(fun(Node) -> queue_storage:remove_from_queue(Node == Elevator, Node, Floor) end, [node()]++nodes() ),
 			remote_listener();
 
-		{merge_to_inner_queue, Remote_queue} ->	%Remote_queue is ordset
+		{merge_to_inner_queue, Remote_queue} ->	
 			Original_queue = queue_storage:get_queue_set(node(),inner),
 			New_queue = ordsets:union(Original_queue,Remote_queue),
 			queue_storage:replace_queue(node(),New_queue),
 			remote_listener()
-
-			%UFERDIG: TIL CONSISTENCY CHECKS %TODO
-		%{outer_queue_request, Sender} ->
-			%Outer_queue_list = 
 	end.
 
 node_watcher({0,0,0}) ->
@@ -184,7 +178,7 @@ node_watcher(Timestamp) ->
 			end,
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
 	after 30000 ->
-		%EVA: DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
+		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
 		ok
 	end,
 	node_watcher({0,0,1}).
@@ -220,7 +214,6 @@ go_to_destination(stop) ->
 	Floor = state_storage:get_information(get_last_known_floor, node()),
 	respond_to_new_floor(true, Floor);
 go_to_destination(Direction) ->
-	io:fwrite("Going to destination at direction ~w ~n", [Direction]),
 	?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}.
 
 respond_to_new_floor(Floor) ->
@@ -241,13 +234,8 @@ send_to_connected_nodes(Command, Message) ->
 	lists:foreach(fun(Node) -> {?REMOTE_LISTENER_PID, Node} ! {Command, Message} end, nodes()).
 
 set_my_local_and_remote_info(Info_type, Message) ->
-	io:fwrite("Sending message: ~w to remote ~n", [Message]),
 	state_storage:set_information(list_to_atom("set_" ++ Info_type), {node(), Message}),
 	send_to_connected_nodes(list_to_atom("update_" ++ Info_type), {node(), Message}).
 
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
 set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
-
-direction(0) -> stop;
-direction(Relative_position) when Relative_position > 0 -> up;
-direction(Relative_position) when Relative_position < 0 -> down.

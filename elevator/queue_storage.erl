@@ -1,8 +1,9 @@
 - module (queue_storage).
-- export([init/1, get_my_next/0, set_my_next/1,add_to_queue/2, remove_from_queue/3,get_queue_set/2,replace_queue/2,update_queue/1,is_order/1,is_order/3]).
-- export([queue_storage_loop/2]).
+- export([init/1,queue_storage_loop/2]).
+- export([get_my_next/0, set_my_next/1,add_to_queue/2, remove_from_queue/3,get_queue_set/2,replace_queue/2,update_queue/1,is_order/1,is_order/3]).
+
 - record(order,{floor,type}).
-%- compile (export_all).
+
 - define(QUEUE_PID, queue).
 - define(INNER, "_inner").
 - define(OUTER, "_outer").
@@ -25,7 +26,7 @@ init_storage(Queues, Member, Rest) ->
 	New_queues = dict:append(Out_name, ordsets:new(), Temp_dict),
 	init_storage(New_queues,Rest).
 
-queue_storage_loop(Queues, My_next) -> %TODO: WHAT IS MEH!?
+queue_storage_loop(Queues, My_next) ->
 	receive
 		{add, {Pid, Key, Order}} ->
 			{_ok,[Subject_set | _Meh]} = dict:find(Key, Queues),
@@ -88,7 +89,7 @@ add_to_queue(ElevatorID, Order) ->
 
 	end.
 
-remove_from_queue(true, ElevatorID, Floor) -> %First argument is bool Remove_from_inner
+remove_from_queue(true, ElevatorID, Floor) -> %First argument is Remove_from_inner
 	In_key = create_key(ElevatorID, inner),
 	Out_key = create_key(ElevatorID, outer),
 	Order1  = #order{floor = Floor, type = down},
