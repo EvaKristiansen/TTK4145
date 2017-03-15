@@ -213,7 +213,12 @@ go_to_destination(stop) ->
 	Floor = state_storage:get_information(get_last_known_floor, node()),
 	respond_to_new_floor(true, Floor);
 go_to_destination(Direction) ->
-	?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}.
+	case Direction == state_storage:get_information(get_direction,node()) of 
+		true ->
+			ok,
+		false - >
+			?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}
+	end.
 
 respond_to_new_floor(Floor) ->
 	driver:set_floor_indicator(Floor),
