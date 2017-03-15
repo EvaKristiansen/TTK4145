@@ -104,6 +104,13 @@ get_direction(ElevatorID) ->
 			Direction
 	end.
 
+get_information(Command, ElevatorID) ->
+	?STATE_STORAGE_PID ! {Command, {self(), ElevatorID}},
+	receive
+		{ok, Value} ->
+			Value
+	end.
+
 update_storage(ElevatorID) ->
 	?STATE_STORAGE_PID ! {update, ElevatorID}.
 

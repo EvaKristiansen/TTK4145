@@ -7,7 +7,7 @@
 
 order_poller(MonitorPID) ->
 	order_distributer:update_my_next(),
-	order_poller(none, queue_module:get_my_next(), MonitorPID).
+	order_poller(none, queue_storage:get_my_next(), MonitorPID).
 
 order_poller(New_order, Last_order, MonitorPID) ->
 	react_to_new_poll(New_order == Last_order, New_order, MonitorPID),
@@ -26,19 +26,19 @@ react_to_new_poll(false, Floor_order, MonitorPID) ->
 wait_and_get_next(Time) ->
 	timer:sleep(Time),
 	order_distributer:update_my_next(),
-	queue_module:get_my_next().
+	queue_storage:get_my_next().
 
 
 update_my_next() ->
 	Elevator_floor = state_storage:get_last_floor(node()),
 	Elevator_direction = state_storage:get_direction(node()),
 	Elevator_direction_int = direction_to_int(Elevator_direction),
-	Outer_list = ordsets:to_list(queue_module:get_queue_set(node(), outer)),
-	Inner_list = ordsets:to_list(queue_module:get_queue_set(node(), inner)),
+	Outer_list = ordsets:to_list(queue_storage:get_queue_set(node(), outer)),
+	Inner_list = ordsets:to_list(queue_storage:get_queue_set(node(), inner)),
 	Order_list = Inner_list ++ Outer_list,
 	update_my_next(Order_list, {10000, #order{floor = none, type = none}}, Elevator_floor, Elevator_direction_int).
 
-update_my_next([],{_Best_penalty, Best_order}, _Elevator_floor, _Elevator_direction_int) -> queue_module:set_my_next(Best_order#order.floor);
+update_my_next([],{_Best_penalty, Best_order}, _Elevator_floor, _Elevator_direction_int) -> queue_storage:set_my_next(Best_order#order.floor);
 
 update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator_direction_int) ->
 	[Order | Rest] = Order_list,
@@ -59,13 +59,13 @@ update_my_next(Order_list, {Best_penalty, _Best_order}, Elevator_floor, Elevator
 
 distribute_order({order, Floor, inner}) ->
 	Order = #order{floor=Floor,type = inner},
-	queue_module:add_to_queue(node(),Order),
+	queue_storage:add_to_queue(node(),Order),
 	node();
 distribute_order(Order) -> 
 	Memberlist = [node()|nodes()],
 	Penalties = get_penalties(Memberlist,[],Order),
 	Winner = choose_winner(Memberlist, Penalties, {10000, dummy@member}),
-	queue_module:add_to_queue(Winner, Order),
+	queue_storage:add_to_queue(Winner, Order),
 	Winner.
 
 
@@ -148,12 +148,12 @@ position_penalty(true, true, Distance, _Type_int) ->
 
 
 merge_from_elevator(ElevatorID)->
-	Queue = ordsets:to_list(queue_module:get_queue_set(ElevatorID,outer)),
+	Queue = ordsets:to_list(queue_storage:get_queue_set(ElevatorID,outer)),
 	io:fwrite("~n~n~n", []),
 	io:fwrite("Outer queue of crashing node: ~w ~n", [Queue]),
-	io:fwrite("My outer queue before the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
+	io:fwrite("My outer queue before the crash: ~w ~n", [queue_storage:get_queue_set(node(), outer)]),
 	lists:foreach(fun(Order) -> distribute_order(Order) end, Queue),
-	io:fwrite("My outer queue after the crash: ~w ~n", [queue_module:get_queue_set(node(), outer)]),
+	io:fwrite("My outer queue after the crash: ~w ~n", [queue_storage:get_queue_set(node(), outer)]),
 	io:fwrite("~n~n~n", []).
 
 
