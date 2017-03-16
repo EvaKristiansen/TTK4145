@@ -75,6 +75,8 @@ elevator_monitor() ->
 			receive
 				{new_floor_reached,Floor} ->
 					?ELEVATOR_MONITOR_PID ! {new_floor_reached,Floor}
+			after 30000 ->
+				init:stop()
 			end,
 			elevator_monitor() 
 	end.
