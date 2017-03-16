@@ -177,11 +177,8 @@ node_watcher(Timestamp) ->
 			queue_storage:update_queue(Node),
 			state_storage:update_storage(Node),
 			Node_queue = queue_storage:get_queue_set(Node,inner),
-			receive
-				init_complete ->
-					ok
-			end,
-			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
+			spawn(fun() -> send_to_elevator_if_present(Node,Node_queue) end)
+			
 %	after 30000 ->
 %		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
 %		ok
@@ -256,6 +253,7 @@ start_timer_if_not_present() ->
 	start_timer_if_not_present(Is_present).
 start_timer_if_not_present(true) -> 
 	?TIMER ! stop,
+	timer:sleep(60),
 	register(?TIMER , spawn(fun() -> delay_timer() end));
 start_timer_if_not_present(false) ->
 	register(?TIMER , spawn(fun() -> delay_timer() end)).
@@ -268,3 +266,15 @@ stop_timer_if_present(true) ->
 	?TIMER ! stop;
 stop_timer_if_present(false) ->
 	ok.
+
+send_to_elevator_if_present(ID, Msg) ->
+	State = state_storage:get_information(get_state,ID),
+	send_to_elevator_if_present(ID, State, Msg).
+
+
+send_to_elevator_if_present(ID,unknown,Msg) ->
+	timer:sleep(100),
+	send_to_elevator_if_present(ID,Msg);
+
+send_to_elevator_if_present(ID,_State,Msg) ->
+	{?REMOTE_LISTENER_PID, ID} ! {merge_to_inner_queue, Msg}.
