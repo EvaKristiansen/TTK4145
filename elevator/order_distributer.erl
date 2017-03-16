@@ -11,8 +11,6 @@ order_poller(MonitorPID) ->
 	order_poller(queue_storage:get_my_next(), none, MonitorPID).
 
 order_poller(New_order, Last_order, MonitorPID) ->
-	io:fwrite("order_poller starting ~n", []),
-
 	react_to_new_poll(New_order == Last_order, New_order, MonitorPID),
 
 	Newest_order = wait_and_get_next(300),
@@ -111,7 +109,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 
 state_penalty(init) -> 1000;
 state_penalty(unknown) -> 1000;
-state_penalty(idle) -> 10;
+state_penalty(idle) -> 7;
 state_penalty(moving) -> 10;
 state_penalty(door_open) -> 10;
 state_penalty(stuck) -> 1000.

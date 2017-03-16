@@ -71,6 +71,7 @@ elevator_monitor() ->
 
 		{stuck} ->
 			set_my_local_and_remote_info("state", stuck),
+			io:fwrite("I am stuck ~n", []),
 			receive
 				{new_floor_reached,Floor} ->
 					?ELEVATOR_MONITOR_PID ! {new_floor_reached,Floor}
@@ -215,8 +216,8 @@ go_to_destination(stop) ->
 go_to_destination(Direction) ->
 	case Direction == state_storage:get_information(get_direction,node()) of 
 		true ->
-			ok,
-		false - >
+			ok;
+		false ->
 			?DRIVER_MANAGER_PID  ! {go_to_destination, Direction}
 	end.
 
