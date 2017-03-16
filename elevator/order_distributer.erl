@@ -97,7 +97,7 @@ get_penalty(Member, Rest, Penalties, Order) ->
 	Order_type_int = order_type_to_int(Order#order.type),
 
 	Relative_position = Order#order.floor - Elevator_floor,									% Positive if pling is over elevator, else negative
-	Moving_towards_pling = compare(sign(Relative_position), sign(Elevator_direction_int)),	% True if elevator moves towards pling
+	Moving_towards_pling = compare(sign(Relative_position), Elevator_direction_int),	% True if elevator moves towards pling
 	Equal_direction = compare(Order_type_int, Elevator_direction_int), 						% True if elevator and signal same direction
 	Distance = abs(Relative_position),	
 	
