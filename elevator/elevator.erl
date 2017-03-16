@@ -89,7 +89,8 @@ driver_manager_init() ->
 driver_manager() ->
 	receive
 		{stop_at_floor,Floor} ->
-			?TIMER ! stop,
+			%?TIMER ! stop,
+			stop_timer_if_present(),
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
 
@@ -105,7 +106,8 @@ driver_manager() ->
 			driver_manager();
 
 		{at_end_floor} ->
-			?TIMER ! stop,
+			%?TIMER ! stop,
+			stop_timer_if_present(),
 			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("direction", stop),
 			set_my_local_and_remote_info("state", idle),
@@ -116,7 +118,8 @@ driver_manager() ->
 			driver:set_motor_direction(Direction),
 			set_my_local_and_remote_info("direction", Direction),
 			set_my_local_and_remote_info("state", moving),
-			register(?TIMER , spawn(fun() -> delay_timer() end)),
+			%register(?TIMER , spawn(fun() -> delay_timer() end)),
+			start_timer_if_not_present(),
 
 			driver_manager()
 	end.
@@ -179,9 +182,9 @@ node_watcher(Timestamp) ->
 					ok
 			end,
 			{?REMOTE_LISTENER_PID, Node} ! {merge_to_inner_queue, Node_queue}
-	after 30000 ->
-		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
-		ok
+%	after 30000 ->
+%		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
+%		ok
 	end,
 	node_watcher({0,0,1}).
 
@@ -212,7 +215,8 @@ toset({button, Floor, Type, _State}) ->
 	queue_storage:is_order(Order).
 
 go_to_destination(stop) ->
-	register(?TIMER , spawn(fun() -> delay_timer() end)),
+	%register(?TIMER , spawn(fun() -> delay_timer() end)),
+	start_timer_if_not_present(),
 	Floor = state_storage:get_information(get_last_known_floor, node()),
 	respond_to_new_floor(true, Floor);
 go_to_destination(Direction) ->
@@ -246,3 +250,21 @@ set_my_local_and_remote_info(Info_type, Message) ->
 
 set_button(true, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,on);
 set_button(false, Button) -> driver:set_button_lamp(Button#button.type,Button#button.floor,off).
+
+start_timer_if_not_present() ->
+	Is_present = lists:member(?TIMER, registered()),
+	start_timer_if_not_present(Is_present).
+start_timer_if_not_present(true) -> 
+	?TIMER ! stop,
+	register(?TIMER , spawn(fun() -> delay_timer() end));
+start_timer_if_not_present(false) ->
+	register(?TIMER , spawn(fun() -> delay_timer() end)).
+
+
+stop_timer_if_present() ->
+	Is_present = lists:member(?TIMER, registered()),
+	stop_timer_if_present(Is_present).
+stop_timer_if_present(true) -> 
+	?TIMER ! stop;
+stop_timer_if_present(false) ->
+	ok.
