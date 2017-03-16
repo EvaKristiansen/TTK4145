@@ -23,9 +23,6 @@ react_to_new_poll(true, _Floor_order, _Pid) ->
 react_to_new_poll(false, Floor_order, MonitorPID) ->
 	Elevator_floor = state_storage:get_information(get_last_known_floor,node()), 
 	Relative_position = Floor_order - Elevator_floor,
-	New_direction = direction(Relative_position),
-	Elevator_direction = state_storage:get_information(get_direction,node()),
-
 	MonitorPID ! {new_destination, direction(Relative_position)}.
 
 wait_and_get_next(Time) ->
