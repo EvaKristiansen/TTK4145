@@ -180,9 +180,13 @@ node_watcher(Timestamp) ->
 			Node_queue = queue_storage:get_queue_set(Node,inner),
 			spawn(fun() -> send_to_elevator_if_present(Node,Node_queue) end)
 			
-%	after 30000 ->
-%		%DO SOME CONSISTENSY CHECKS BETWEEN STORAGES HERE!
-%		ok
+	after 3000 ->
+		State = state_storage:get_information(get_state, node()),
+		Floor = state_storage:get_information(get_last_known_floor,node()),
+		Direction = state_storage:get_information(get_direction,node()),
+		set_my_local_and_remote_info("state", State),
+		set_my_local_and_remote_info("last_known_floor", Floor),
+		set_my_local_and_remote_info("direction", Direction)
 	end,
 	node_watcher({0,0,1}).
 
