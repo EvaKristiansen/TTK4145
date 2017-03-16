@@ -11,7 +11,6 @@ order_poller(MonitorPID) ->
 	order_poller(queue_storage:get_my_next(), none, MonitorPID).
 
 order_poller(New_order, Last_order, MonitorPID) ->
-	io:fwrite("order_poller starting ~n", []),
 
 	react_to_new_poll(New_order == Last_order, New_order, MonitorPID),
 
