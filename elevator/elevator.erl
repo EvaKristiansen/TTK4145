@@ -46,6 +46,7 @@ start() ->
 
 	lists:foreach(fun(Node) -> {?NODE_WATCHER_PID, Node} ! init_complete end, nodes()),
 	set_my_local_and_remote_info("state", idle),
+	io:fwrite("Sening my info: State = idle, to nodes: ~w ~n", [nodes()]),
 	spawn(fun()-> order_distributer:order_poller(?ELEVATOR_MONITOR_PID) end).
 
 elevator_monitor_init() ->
@@ -277,4 +278,5 @@ send_to_elevator_if_present(ID,unknown,Msg) ->
 	send_to_elevator_if_present(ID,Msg);
 
 send_to_elevator_if_present(ID,_State,Msg) ->
+	io:fwrite("Sending merge message ~n", []),
 	{?REMOTE_LISTENER_PID, ID} ! {merge_to_inner_queue, Msg}.

@@ -16,7 +16,7 @@ init(Init_listener)->
 	
 	spawn(fun() -> listen_for_connections(Listen_socket) end),
 	spawn(fun() -> broadcast_loop(Send_socket) end),
-	timer:sleep(60), 
+	timer:sleep(3000), 
 	Init_listener ! connection_init_complete.
 	
 listen_for_connections(Listen_socket) ->
@@ -37,7 +37,7 @@ get_my_list_ip() ->
 
 broadcast_loop(Send_socket) ->
 	gen_udp:send(Send_socket,{255,255,255,255},?RECEIVE_PORT,atom_to_list(node())),
-	timer:sleep(5000),
+	timer:sleep(1000),
 	broadcast_loop(Send_socket).
 
 establishconnection(Node) ->
