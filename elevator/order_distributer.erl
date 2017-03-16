@@ -134,7 +134,8 @@ order_type_to_int(up) -> 1.
 
 direction_to_int(down) -> -1;
 direction_to_int(stop) -> 0;
-direction_to_int(up) -> 1.
+direction_to_int(up) -> 1;
+direction_to_int(_) -> 0.
 
 direction(0) -> stop;
 direction(Relative_position) when Relative_position > 0 -> up;
