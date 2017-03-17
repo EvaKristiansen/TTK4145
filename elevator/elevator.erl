@@ -71,6 +71,7 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{stuck} ->
+			driver:set_motor_direction(stop),
 			init:stop()
 			
 	end.
