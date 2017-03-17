@@ -71,7 +71,6 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{stuck} ->
-			driver:set_motor_direction(stop),
 			set_my_local_and_remote_info("state", stuck),
 			set_my_local_and_remote_info("direction", stop),
 			io:fwrite("I am stuck ~n", []),
