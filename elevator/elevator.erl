@@ -71,16 +71,8 @@ elevator_monitor() ->
 			elevator_monitor();
 
 		{stuck} ->
-			set_my_local_and_remote_info("state", stuck),
-			set_my_local_and_remote_info("direction", stop),
-			io:fwrite("I am stuck ~n", []),
-			receive
-				{new_floor_reached,Floor} ->
-					?ELEVATOR_MONITOR_PID ! {new_floor_reached,Floor}
-			after 30000 ->
-				init:stop()
-			end,
-			elevator_monitor() 
+			init:stop()
+			
 	end.
 
 driver_manager_init() ->
